@@ -4,18 +4,34 @@ import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert } from 'reac
 const ForgotPasswordScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
 
-  const handleForgotPassword = () => {
-    // For simplicity, we'll just show an alert.
-    // In a real app, you would send the email to the backend server for password reset.
-    if (email) {
-      Alert.alert(
-        'Password Reset',
-        `If an account with the email ${email} exists, you will receive a password reset email shortly.`,
-      );
-      // Navigate back to the login screen
-      navigation.navigate('Login');
-    } else {
+  const handleForgotPassword = async () => {
+    if (!email) {
       Alert.alert('Error', 'Please enter a valid email address.');
+      return;
+    }
+
+    try {
+      const response = await fetch('http://192.168.2.246:5000/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      if (response.ok) {
+        Alert.alert(
+          'Password Reset',
+          `If an account with the email ${email} exists, you will receive a password reset email shortly.`
+        );
+        navigation.navigate('Login');
+      } else {
+        const errorData = await response.json();
+        Alert.alert('Error', errorData.message || 'Failed to send reset link.');
+      }
+    } catch (error) {
+      console.error('Error sending reset link:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
     }
   };
 

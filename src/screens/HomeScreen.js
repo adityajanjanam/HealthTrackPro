@@ -7,10 +7,6 @@ const { width, height } = Dimensions.get('window');
 const HomeScreen = ({ navigation, route }) => {
   const username = route.params?.username || 'Healthcare Provider';
 
-  // Simulated patient data
-  const totalPatientsCount = 5; 
-  const criticalPatientsCount = 2; // Example for critical patients count
-
   const handleHelpPress = () => {
     Alert.alert(
       '24/7 Assistance',
@@ -30,22 +26,9 @@ const HomeScreen = ({ navigation, route }) => {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      
       {/* Dashboard Overview Section */}
       <View style={styles.dashboard}>
         <Text style={styles.welcomeText}>Welcome, {username}!</Text>
-        <Text style={styles.dashboardText}>Total Patients: {totalPatientsCount}</Text>
-        <Text style={styles.dashboardText}>Critical Patients: {criticalPatientsCount}</Text>
-        {criticalPatientsCount > 0 && (
-          <TouchableOpacity 
-            style={styles.criticalAlertButton}
-            onPress={() => navigation.navigate('CriticalConditionAlert')}
-          >
-            <Text style={styles.criticalAlertText}>
-              ⚠️ Attention! {criticalPatientsCount} patients in critical condition.
-            </Text>
-          </TouchableOpacity>
-        )}
       </View>
 
       {/* Manage Patients Section */}
@@ -66,7 +49,20 @@ const HomeScreen = ({ navigation, route }) => {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.manageButton}
-              onPress={() => navigation.navigate('ListAllPatients')}
+              onPress={async () => {
+                try {
+                  const response = await fetch('http://192.168.2.246:5000/patients');
+                  if (response.ok) {
+                    const data = await response.json();
+                    navigation.navigate('ListAllPatients', { patients: data });
+                  } else {
+                    Alert.alert('Error', 'Failed to fetch patient data');
+                  }
+                } catch (error) {
+                  console.error('Error fetching patient data:', error);
+                  Alert.alert('Error', 'An unexpected error occurred.');
+                }
+              }}
             >
               <Text style={styles.manageButtonText}>View All Patients</Text>
             </TouchableOpacity>
@@ -74,6 +70,41 @@ const HomeScreen = ({ navigation, route }) => {
         </View>
       </View>
 
+      {/* New Features Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>New Features</Text>
+        <View style={styles.recordsRow}>
+          <TouchableOpacity
+            style={styles.iconBoxDark}
+            onPress={() => navigation.navigate('AddPatientRecord')}
+          >
+            <Icon name="account-plus" size={30} color="#fff" />
+            <Text style={styles.iconLabel}>Add Patient Records</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.iconBoxDark}
+            onPress={async () => {
+              try {
+                const response = await fetch('http://192.168.2.246:5000/patient-records');
+                if (response.ok) {
+                  const data = await response.json();
+                  navigation.navigate('ViewPatientRecords', { records: data });
+                } else {
+                  Alert.alert('Error', 'Failed to fetch patient records');
+                }
+              } catch (error) {
+                console.error('Error fetching patient records:', error);
+                Alert.alert('Error', 'An unexpected error occurred.');
+              }
+            }}
+          >
+            <Icon name="format-list-bulleted" size={30} color="#fff" />
+            <Text style={styles.iconLabel}>View Patient Records</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+            
       {/* Patient Records Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Patient Records</Text>
@@ -94,28 +125,6 @@ const HomeScreen = ({ navigation, route }) => {
             <Icon name="heart" size={30} color="#fff" />
             <Text style={styles.iconLabel}>Heart Rate</Text>
           </View>
-        </View>
-      </View>
-
-      {/* New Features Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>New Features</Text>
-        <View style={styles.recordsRow}>
-          <TouchableOpacity
-            style={styles.iconBoxDark}
-            onPress={() => navigation.navigate('AddPatientRecord')}
-          >
-            <Icon name="account-plus" size={30} color="#fff" />
-            <Text style={styles.iconLabel}>Add Patient Records</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.iconBoxDark}
-            onPress={() => navigation.navigate('ViewPatientRecords')}
-          >
-            <Icon name="format-list-bulleted" size={30} color="#fff" />
-            <Text style={styles.iconLabel}>View Patient Records</Text>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -148,29 +157,13 @@ const styles = StyleSheet.create({
   dashboard: {
     marginBottom: height * 0.02,
   },
-  dashboardText: {
-    fontSize: width * 0.04,
-    marginBottom: height * 0.005,
-  },
-  criticalAlertButton: {
-    backgroundColor: 'red',
-    padding: 10,
-    borderRadius: 10,
-    marginTop: 10,
-  },
-  criticalAlertText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    textAlign: 'center',
-    fontSize: width * 0.04,
-  },
-  card: {
-    marginBottom: height * 0.02,
-  },
   welcomeText: {
     fontSize: width * 0.05,
     fontWeight: 'bold',
     marginBottom: height * 0.01,
+  },
+  card: {
+    marginBottom: height * 0.02,
   },
   manageCard: {
     backgroundColor: '#ffffff',

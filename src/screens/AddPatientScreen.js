@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 
 const AddPatientScreen = ({ navigation }) => {
   const [name, setName] = useState('');
@@ -7,17 +7,34 @@ const AddPatientScreen = ({ navigation }) => {
   const [contact, setContact] = useState('');
   const [medicalHistory, setMedicalHistory] = useState('');
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!name || !dob || !contact || !medicalHistory) {
       alert('Please fill in all the fields');
     } else {
-      // Handle form submission logic here
-      alert('Patient information added successfully!');
-      // Clear form fields
-      setName('');
-      setDob('');
-      setContact('');
-      setMedicalHistory('');
+      try {
+        const response = await fetch('http://192.168.2.246:5000/patients', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name, dob, contact, medicalHistory }),
+        });
+
+        if (response.ok) {
+          Alert.alert('Success', 'Patient information added successfully!');
+          // Clear form fields
+          setName('');
+          setDob('');
+          setContact('');
+          setMedicalHistory('');
+        } else {
+          const errorData = await response.json();
+          Alert.alert('Error', errorData.message || 'Failed to add patient.');
+        }
+      } catch (error) {
+        console.error('Error adding patient:', error);
+        Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
+      }
     }
   };
 

@@ -1,7 +1,28 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 
 const PatientMedicalReport = ({ navigation }) => {
+  const [patientReports, setPatientReports] = useState([]);
+
+  useEffect(() => {
+    // Fetch medical report data from the backend
+    const fetchReports = async () => {
+      try {
+        const response = await fetch('http://192.168.2.246:5000/reports'); // Replace with actual backend API URL
+        if (response.ok) {
+          const data = await response.json();
+          setPatientReports(data);
+        } else {
+          console.error('Failed to fetch reports:', response.status);
+        }
+      } catch (error) {
+        console.error('Error fetching patient reports:', error);
+      }
+    };
+
+    fetchReports();
+  }, []);
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.selectedRecordCard}>
@@ -22,54 +43,16 @@ const PatientMedicalReport = ({ navigation }) => {
       <View style={styles.recordsOverview}>
         <Text style={styles.overviewTitle}>Patient records overview</Text>
         <View style={styles.recordsGrid}>
-          <View style={styles.recordBox}>
-            <Image
-              source={require('../../assets/BloodPressure.jpg')} // Replace with your own image file path
-              style={styles.recordImage}
-              resizeMode="contain"
-            />
-            <Text style={styles.recordLabel}>Blood pressure data</Text>
-          </View>
-          <View style={styles.recordBox}>
-            <Image
-              source={require('../../assets/heartrate.png')} // Replace with your own image file path
-              style={styles.recordImage}
-              resizeMode="contain"
-            />
-            <Text style={styles.recordLabel}>Heart rate information</Text>
-          </View>
-          <View style={styles.recordBox}>
-            <Image
-              source={require('../../assets/ClinicalInfromation.jpg')} // Replace with your own image file path
-              style={styles.recordImage}
-              resizeMode="contain"
-            />
-            <Text style={styles.recordLabel}>Clinical information</Text>
-          </View>
-          <View style={styles.recordBox}>
-            <Image
-              source={require('../../assets/PatientMedicalHistory.jpg')} // Replace with your own image file path
-              style={styles.recordImage}
-              resizeMode="contain"
-            />
-            <Text style={styles.recordLabel}>Patient history details</Text>
-          </View>
-          <View style={styles.recordBox}>
-            <Image
-              source={require('../../assets/PatientRecordsView.jpg')} // Replace with your own image file path
-              style={styles.recordImage}
-              resizeMode="contain"
-            />
-            <Text style={styles.recordLabel}>Patient records view</Text>
-          </View>
-          <View style={styles.recordBox}>
-            <Image
-              source={require('../../assets/Patientdata.jpg')} // Replace with your own image file path
-              style={styles.recordImage}
-              resizeMode="contain"
-            />
-            <Text style={styles.recordLabel}>Patient data</Text>
-          </View>
+          {patientReports.map((report, index) => (
+            <View key={index} style={styles.recordBox}>
+              <Image
+                source={{ uri: report.imageUrl }} // Load images dynamically from backend data
+                style={styles.recordImage}
+                resizeMode="contain"
+              />
+              <Text style={styles.recordLabel}>{report.label}</Text>
+            </View>
+          ))}
         </View>
       </View>
     </ScrollView>

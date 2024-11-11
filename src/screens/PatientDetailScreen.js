@@ -1,74 +1,105 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 
-const PatientDetailScreen = ({ navigation }) => {
+const PatientDetailScreen = ({ navigation, route }) => {
+  const { patientId } = route.params;
+  const [patientData, setPatientData] = useState(null);
+
+  useEffect(() => {
+    if (!patientId) {
+      console.error('Patient ID is undefined.');
+      return;
+    }
+  
+    // Fetch patient data from backend server
+    const fetchPatientData = async () => {
+      try {
+        console.log('Fetching data for patient ID:', patientId);
+        const response = await fetch(`http://192.168.2.246:5000/patients/${patientId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setPatientData(data);
+        } else {
+          console.error('Failed to fetch patient data:', response.status);
+          alert(`Failed to fetch patient data: ${response.status}`);
+        }
+      } catch (error) {
+        console.error('Error fetching patient data:', error);
+        alert(`Error fetching patient data: ${error.message}`);
+      }
+    };
+  
+    fetchPatientData();
+  }, [patientId]);
+  
+  
+
   const handleEditInfo = () => {
-    // Logic to edit patient info
     alert('Edit info functionality not yet implemented.');
   };
 
   const handleDeleteInfo = () => {
-    // Logic to delete patient info
     alert('Delete info functionality not yet implemented.');
   };
+
+  if (!patientData) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.header}>Loading...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Patient Detail View</Text>
-
       {/* Personal Details */}
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Personal Details</Text>
         <Text style={styles.detailText}>
-          <Text style={styles.label}>Name: </Text>Samantha Green
+          <Text style={styles.label}>Name: </Text>{patientData.name}
         </Text>
         <Text style={styles.detailText}>
-          <Text style={styles.label}>Age: </Text>34
+          <Text style={styles.label}>Age: </Text>{patientData.age}
         </Text>
         <Text style={styles.detailText}>
-          <Text style={styles.label}>Contact: </Text>(555) 123-4567
+          <Text style={styles.label}>Contact: </Text>{patientData.contact}
         </Text>
       </View>
-
       {/* Clinical Data */}
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Clinical Data</Text>
         <Text style={styles.detailText}>
-          <Text style={styles.label}>Blood Pressure: </Text>180/120 mmHg <Text style={styles.critical}>Critical</Text>
+          <Text style={styles.label}>Blood Pressure: </Text>{patientData.bloodPressure} {patientData.isCritical && <Text style={styles.critical}>Critical</Text>}
         </Text>
         <Text style={styles.detailText}>
-          <Text style={styles.label}>Heart Rate: </Text>110 bpm
+          <Text style={styles.label}>Heart Rate: </Text>{patientData.heartRate}
         </Text>
         <Text style={styles.detailText}>
-          <Text style={styles.label}>Blood Oxygen Level: </Text>92%
+          <Text style={styles.label}>Blood Oxygen Level: </Text>{patientData.oxygenLevel}
         </Text>
         <Text style={styles.detailText}>
-          <Text style={styles.label}>Respiratory Rate: </Text>18/min
+          <Text style={styles.label}>Respiratory Rate: </Text>{patientData.respiratoryRate}
         </Text>
       </View>
-
       {/* Medical History */}
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Medical History</Text>
-        <Text style={styles.detailText}>
-          <Text style={styles.dateLabel}>2023-01-15: </Text>Completed physical therapy for knee.
-        </Text>
-        <Text style={styles.detailText}>
-          <Text style={styles.dateLabel}>2022-11-10: </Text>Prescribed medication for cholesterol management.
-        </Text>
+        {patientData.medicalHistory.map((entry, index) => (
+          <Text key={index} style={styles.detailText}>
+            <Text style={styles.dateLabel}>{entry.date}: </Text>{entry.description}
+          </Text>
+        ))}
       </View>
-
       {/* Patient Records */}
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Patient Records</Text>
-        <Text style={styles.detailText}>
-          <Text style={styles.dateLabel}>2023-02-14: </Text>Blood tests indicate normal cholesterol levels.
-        </Text>
-        <Text style={styles.detailText}>
-          <Text style={styles.dateLabel}>2023-01-10: </Text>MRI scan for knee showed improvement. Routine check-up. All vitals normal.
-        </Text>
+        {patientData.records.map((record, index) => (
+          <Text key={index} style={styles.detailText}>
+            <Text style={styles.dateLabel}>{record.date}: </Text>{record.description}
+          </Text>
+        ))}
       </View>
-
       {/* Buttons */}
       <View style={styles.buttonContainer}>
         <TouchableOpacity style={styles.editButton} onPress={handleEditInfo}>

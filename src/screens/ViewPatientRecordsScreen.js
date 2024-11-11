@@ -1,34 +1,55 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 
 const ViewPatientRecordsScreen = ({ navigation }) => {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('name');
+  const [patients, setPatients] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Sample patient data
-  const patients = [
-    {
-      name: 'John Smith',
-      age: 45,
-      conditions: 'Hypertension, Diabetes',
-      lastVisit: '2023-10-15',
-      isCritical: true,  // Flagging critical patients
-    },
-    {
-      name: 'Emily Brown',
-      age: 32,
-      conditions: 'Asthma',
-      lastVisit: '2023-09-28',
-      isCritical: false,
-    },
-    {
-      name: 'Michael Johnson',
-      age: 58,
-      conditions: 'Coronary Artery Disease',
-      lastVisit: '2023-10-03',
-      isCritical: true,
-    },
-  ];
+  useEffect(() => {
+    // Fetch patient data from the backend
+    const fetchPatients = async () => {
+      setLoading(true);
+      try {
+        console.log('Fetching patient data...');
+        const response = await fetch('http://192.168.2.246:5000/patient-records');  
+        if (!response.ok) {
+          console.error('Response error:', response.status);
+          throw new Error(`Failed to fetch patient records: ${response.status}`);
+        }
+  
+        const data = await response.json();
+        console.log('Patients fetched successfully:', data);
+        setPatients(data);
+      } catch (error) {
+        console.error('Error fetching patient data:', error);
+        alert(`Failed to fetch patient records: ${error.message}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+  
+    fetchPatients();
+  }, []);
+  
+  // Show a loading message while data is being fetched
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Text>Loading patient records...</Text>
+      </View>
+    );
+  }
+
+  // Show message if no records found
+  if (!patients || patients.length === 0) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.noDataText}>No records found for this patient.</Text>
+      </View>
+    );
+  }
 
   // Filter patients based on search input
   const filteredPatients = patients
@@ -155,6 +176,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 14,
+  },
+  noDataText: {
+    fontSize: 16,
+    textAlign: 'center',
+    color: '#888',
   },
 });
 

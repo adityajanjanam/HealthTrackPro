@@ -1,24 +1,51 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native'; 
+
 
 const SignUpScreen = ({ navigation }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleSignUp = () => {
+  const handleSignUp = async () => {
     if (!name || !email || !password) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
-    // Successful sign up, navigate to Home screen and pass the username
-    Alert.alert('Success', 'Account created successfully!', [
-      {
-        text: 'OK',
-        onPress: () => navigation.replace('Home', { username: name }), // Pass the user's name to Home Screen
-      },
-    ]);
+  
+    try {
+      const response = await fetch('http://192.168.2.246:5000/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+        }),
+      });
+  
+      const responseText = await response.text();
+      console.log('Response Text:', responseText);
+  
+      if (response.ok) {
+        const data = JSON.parse(responseText);
+        Alert.alert('Success', 'Account created successfully!', [
+          {
+            text: 'OK',
+            onPress: () => navigation.replace('Home', { username: name }),
+          },
+        ]);
+      } else {
+        Alert.alert('Error', responseText || 'Failed to create account');
+      }
+    } catch (error) {
+      console.error('Sign-up error:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
+    }
   };
+  
 
   return (
     <View style={styles.container}>

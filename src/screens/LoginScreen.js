@@ -6,24 +6,74 @@ const LoginScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
+  // Helper function to validate email format
+  const isValidEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const handleLogin = async () => {
+    // Validation checks before proceeding with the login request
     if (!email || !password) {
       Alert.alert('Error', 'Please fill in both email and password fields.');
       return;
     }
 
+    if (!isValidEmail(email)) {
+      Alert.alert('Error', 'Please enter a valid email address.');
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters long.');
+      return;
+    }
+
     setLoading(true);
-    // Simulating a login process
-    setTimeout(() => {
-      setLoading(false);
-      const username = email.split('@')[0];
-      Alert.alert('Success', 'Logged in successfully!', [
-        {
-          text: 'OK',
-          onPress: () => navigation.replace('Home', { username }), // Pass the username to Home Screen
+    try {
+      const response = await fetch(`http://192.168.2.246:5000/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      ]);
-    }, 1500);
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        const username = email.split('@')[0];
+        Alert.alert('Success', 'Logged in successfully!', [
+          {
+            text: 'OK',
+            onPress: () => navigation.replace('Home', { username }), // Pass the username to Home Screen
+          },
+        ]);
+      } else {
+        if (data.message === 'Invalid credentials') {
+          Alert.alert('Error', 'Incorrect email or password. Please try again.');
+        } else if (data.message === 'User not found') {
+          // Suggest sign-up if the user does not exist
+          Alert.alert('User Not Found', 'No account found with this email. Would you like to sign up?', [
+            {
+              text: 'Cancel',
+              style: 'cancel',
+            },
+            {
+              text: 'Sign Up',
+              onPress: () => navigation.navigate('SignUp'),
+            },
+          ]);
+        } else {
+          Alert.alert('Error', 'Login failed. Please try again.');
+        }
+      }
+    } catch (error) {
+      console.error('Error during login:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

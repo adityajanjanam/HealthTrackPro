@@ -1,37 +1,28 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-
-// Sample patient data with clinical info
-const patients = [
-  {
-    name: 'John Smith',
-    age: 45,
-    heartRate: 120, // Critical threshold exceeded
-    bloodPressure: '180/120 mmHg', // Critical threshold exceeded
-    oxygenLevel: '89%', // Critical threshold
-    isCritical: true, // Marked as critical based on readings
-  },
-  {
-    name: 'Emily Brown',
-    age: 32,
-    heartRate: 80,
-    bloodPressure: '120/80 mmHg',
-    oxygenLevel: '95%',
-    isCritical: false,
-  },
-  {
-    name: 'Michael Johnson',
-    age: 58,
-    heartRate: 130, // Critical threshold exceeded
-    bloodPressure: '160/110 mmHg', // Borderline critical
-    oxygenLevel: '88%', // Critical threshold exceeded
-    isCritical: true,
-  },
-];
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 
 const CriticalConditionAlertScreen = ({ navigation }) => {
-  // Filter patients with critical conditions
-  const criticalPatients = patients.filter(patient => patient.isCritical);
+  const [criticalPatients, setCriticalPatients] = useState([]);
+
+  useEffect(() => {
+    const fetchCriticalPatients = async () => {
+      try {
+        const response = await fetch('http://192.168.2.246:5000/patients/critical'); // Replace with actual endpoint
+        if (response.ok) {
+          const data = await response.json();
+          setCriticalPatients(data);
+        } else {
+          const errorData = await response.json();
+          Alert.alert('Error', errorData.message || 'Failed to fetch critical patients.');
+        }
+      } catch (error) {
+        console.error('Error fetching critical patients:', error);
+        Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
+      }
+    };
+
+    fetchCriticalPatients();
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -85,7 +76,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 15,
     marginBottom: 15,
-    borderColor: 'red', // Highlight critical patients in red
+    borderColor: 'red',
     borderWidth: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

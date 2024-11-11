@@ -1,36 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 
 const ListAllPatientsScreen = ({ navigation }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showCritical, setShowCritical] = useState(false);
+  const [patients, setPatients] = useState([]);
 
-  const patients = [
-    {
-      name: 'John Smith',
-      phone: '(123) 456-7890',
-      email: 'john.smith@example.com',
-      bloodPressure: '180/120 mmHg',
-      heartRate: '110 bpm',
-      isCritical: true, // Flagging this patient as critical
-    },
-    {
-      name: 'Emily Johnson',
-      phone: '(987) 654-3210',
-      email: 'emily.johnson@example.com',
-      bloodPressure: '120/80 mmHg',
-      heartRate: '75 bpm',
-      isCritical: false,
-    },
-    {
-      name: 'Michael Brown',
-      phone: '(555) 123-4567',
-      email: 'michael.brown@example.com',
-      bloodPressure: '130/85 mmHg',
-      heartRate: '80 bpm',
-      isCritical: false,
-    },
-  ];
+  useEffect(() => {
+    // Fetch patient data from the backend API
+    const fetchPatients = async () => {
+      try {
+        const response = await fetch('http://192.168.2.246:5000/patients');
+        if (!response.ok) {
+          throw new Error(`Failed to fetch patients data: ${response.status}`);
+        }
+        const data = await response.json();
+        setPatients(data);
+      } catch (error) {
+        console.error('Error fetching patients:', error);
+        alert(`Error fetching patients data. Status: ${error.message}`);
+      }
+    };    
+
+    fetchPatients();
+  }, []);
 
   // Filter patients based on search term and critical status
   const filteredPatients = patients
@@ -70,9 +63,7 @@ const ListAllPatientsScreen = ({ navigation }) => {
             <Text style={styles.patientName}>{patient.name}</Text>
             <Text style={styles.patientDetails}>Phone: {patient.phone}</Text>
             <Text style={styles.patientDetails}>Email: {patient.email}</Text>
-            <Text style={styles.patientDetails}>
-              Blood Pressure: {patient.bloodPressure}
-            </Text>
+            <Text style={styles.patientDetails}>Blood Pressure: {patient.bloodPressure}</Text>
             <Text style={styles.patientDetails}>Heart Rate: {patient.heartRate}</Text>
             {patient.isCritical && <Text style={styles.criticalText}>Critical Condition</Text>}
           </TouchableOpacity>
