@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage'; 
 
 const AddPatientScreen = ({ navigation }) => {
   const [name, setName] = useState('');
@@ -9,32 +10,42 @@ const AddPatientScreen = ({ navigation }) => {
 
   const handleSubmit = async () => {
     if (!name || !dob || !contact || !medicalHistory) {
-      alert('Please fill in all the fields');
-    } else {
-      try {
-        const response = await fetch('http://192.168.2.246:5000/patients', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ name, dob, contact, medicalHistory }),
-        });
+      Alert.alert('Error', 'Please fill in all the fields');
+      return;
+    }
 
-        if (response.ok) {
-          Alert.alert('Success', 'Patient information added successfully!');
-          // Clear form fields
-          setName('');
-          setDob('');
-          setContact('');
-          setMedicalHistory('');
-        } else {
-          const errorData = await response.json();
-          Alert.alert('Error', errorData.message || 'Failed to add patient.');
-        }
-      } catch (error) {
-        console.error('Error adding patient:', error);
-        Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
+    try {
+      // Retrieve the token from AsyncStorage
+      const token = await AsyncStorage.getItem('accessToken');
+      if (!token) {
+        Alert.alert('Error', 'You are not logged in. Please log in again.');
+        navigation.navigate('Login'); // Navigate to the login screen if no token is found
+        return;
       }
+
+      const response = await fetch('http://192.168.2.246:5000/patients', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, dob, contact, medicalHistory }),
+      });
+
+      if (response.ok) {
+        Alert.alert('Success', 'Patient information added successfully!');
+        // Clear form fields
+        setName('');
+        setDob('');
+        setContact('');
+        setMedicalHistory('');
+      } else {
+        const errorData = await response.json();
+        Alert.alert('Error', errorData.message || 'Failed to add patient.');
+      }
+    } catch (error) {
+      console.error('Error adding patient:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
     }
   };
 

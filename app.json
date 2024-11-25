@@ -12,14 +12,21 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.adityajanjanam.HealthTrackPro"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.adityajanjanam.HealthTrackPro"
+      "package": "com.adityajanjanam.HealthTrackPro",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "INTERNET"
+      ],
+      "newArchEnabled": true
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -28,6 +35,13 @@
       "eas": {
         "projectId": "0af3a409-aa97-4972-8a4d-74627b9340f2"
       }
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": ["**/*"],
+    "runtimeVersion": {
+      "policy": "sdkVersion"
     }
   }
 }

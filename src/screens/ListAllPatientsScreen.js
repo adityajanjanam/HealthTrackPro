@@ -1,34 +1,61 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ListAllPatientsScreen = ({ navigation }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showCritical, setShowCritical] = useState(false);
-  const [patients, setPatients] = useState([]);
+  const [patients, setPatients] = useState([]); // Initialize as an empty array
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Fetch patient data from the backend API
     const fetchPatients = async () => {
+      setLoading(true);
       try {
-        const response = await fetch('http://192.168.2.246:5000/patients');
-        if (!response.ok) {
-          throw new Error(`Failed to fetch patients data: ${response.status}`);
+        const token = await AsyncStorage.getItem('accessToken');
+        if (!token) {
+          Alert.alert('Error', 'You are not logged in. Please log in again.');
+          navigation.navigate('Login');
+          return;
         }
-        const data = await response.json();
-        setPatients(data);
+
+        const response = await fetch('http://192.168.2.246:5000/patients', {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data)) {
+            setPatients(data);
+          } else {
+            setPatients([]); // Ensure patients is always an array
+          }
+        } else {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to fetch patient data');
+        }
       } catch (error) {
         console.error('Error fetching patients:', error);
-        alert(`Error fetching patients data. Status: ${error.message}`);
+        Alert.alert('Error', error.message || 'Failed to fetch patient data');
+        setPatients([]); // Set to an empty array on error to prevent undefined access
+      } finally {
+        setLoading(false);
       }
-    };    
+    };
 
     fetchPatients();
   }, []);
 
   // Filter patients based on search term and critical status
-  const filteredPatients = patients
-    .filter((patient) => patient.name.toLowerCase().includes(searchTerm.toLowerCase()))
-    .filter((patient) => (showCritical ? patient.isCritical : true));
+  const filteredPatients = Array.isArray(patients)
+    ? patients.filter((patient) => patient.name && patient.name.toLowerCase().includes(searchTerm.toLowerCase()))
+      .filter((patient) => (showCritical ? patient.isCritical : true))
+    : [];
 
   return (
     <View style={styles.container}>
@@ -50,25 +77,48 @@ const ListAllPatientsScreen = ({ navigation }) => {
         </Text>
       </TouchableOpacity>
 
-      <ScrollView style={styles.scrollView}>
-        {filteredPatients.map((patient, index) => (
+      {loading ? (
+        <Text style={styles.loadingText}>Loading patients...</Text>
+      ) : patients.length > 0 ? (
+        <ScrollView style={styles.scrollView}>
+          {filteredPatients.length > 0 ? (
+            filteredPatients.map((patient, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.patientCard,
+                  patient.isCritical ? styles.criticalCard : null,
+                ]}
+                onPress={() => navigation.navigate('PatientDetail', { patient })}
+              >
+                <Text style={styles.patientName}>{patient.name}</Text>
+                <Text style={styles.patientDetails}>Phone: {patient.contact || 'N/A'}</Text>
+                <Text style={styles.patientDetails}>
+                  Blood Pressure: {patient.bloodPressure || 'N/A'}
+                </Text>
+                <Text style={styles.patientDetails}>
+                  Heart Rate: {patient.heartRate || 'N/A'}
+                </Text>
+                {patient.isCritical && (
+                  <Text style={styles.criticalText}>Critical Condition</Text>
+                )}
+              </TouchableOpacity>
+            ))
+          ) : (
+            <Text style={styles.noPatientsText}>No patients found matching the criteria.</Text>
+          )}
+        </ScrollView>
+      ) : (
+        <View style={styles.noPatientsContainer}>
+          <Text style={styles.noPatientsText}>No patients added yet.</Text>
           <TouchableOpacity
-            key={index}
-            style={[
-              styles.patientCard,
-              patient.isCritical ? styles.criticalCard : null,
-            ]}
-            onPress={() => navigation.navigate('PatientDetail', { patient })}
+            style={styles.addPatientButton}
+            onPress={() => navigation.navigate('AddPatientScreen')}
           >
-            <Text style={styles.patientName}>{patient.name}</Text>
-            <Text style={styles.patientDetails}>Phone: {patient.phone}</Text>
-            <Text style={styles.patientDetails}>Email: {patient.email}</Text>
-            <Text style={styles.patientDetails}>Blood Pressure: {patient.bloodPressure}</Text>
-            <Text style={styles.patientDetails}>Heart Rate: {patient.heartRate}</Text>
-            {patient.isCritical && <Text style={styles.criticalText}>Critical Condition</Text>}
+            <Text style={styles.addPatientButtonText}>Add New Patient</Text>
           </TouchableOpacity>
-        ))}
-      </ScrollView>
+        </View>
+      )}
     </View>
   );
 };
@@ -138,6 +188,32 @@ const styles = StyleSheet.create({
     color: 'red',
     fontWeight: 'bold',
     marginTop: 8,
+  },
+  loadingText: {
+    textAlign: 'center',
+    fontSize: 16,
+    color: '#555',
+  },
+  noPatientsContainer: {
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  noPatientsText: {
+    textAlign: 'center',
+    fontSize: 16,
+    color: '#555',
+    marginBottom: 20,
+  },
+  addPatientButton: {
+    backgroundColor: '#007bff',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  addPatientButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });
 

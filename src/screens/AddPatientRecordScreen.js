@@ -4,7 +4,7 @@ import { Picker } from '@react-native-picker/picker';
 
 const AddPatientRecordScreen = ({ navigation }) => {
   const [selectedPatient, setSelectedPatient] = useState('');
-  const [patients, setPatients] = useState([]);
+  const [patients, setPatients] = useState([]); // Initialize patients as an empty array
   const [testType, setTestType] = useState('');
   const [reading, setReading] = useState('');
   const [symptoms, setSymptoms] = useState({
@@ -20,10 +20,19 @@ const AddPatientRecordScreen = ({ navigation }) => {
     const fetchPatients = async () => {
       try {
         const response = await fetch('http://192.168.2.246:5000/patients');
-        const data = await response.json();
-        setPatients(data);
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data)) {
+            setPatients(data);
+          } else {
+            setPatients([]); // Ensure patients is always an array
+          }
+        } else {
+          throw new Error('Failed to fetch patients');
+        }
       } catch (error) {
         console.error('Error fetching patients:', error);
+        setPatients([]); // Set patients to an empty array on error to avoid undefined issues
       }
     };
 
@@ -96,9 +105,13 @@ const AddPatientRecordScreen = ({ navigation }) => {
             onValueChange={handlePatientChange}
           >
             <Picker.Item label="Create New Patient" value="new" />
-            {patients.map(patient => (
-              <Picker.Item key={patient._id} label={patient.name} value={patient._id} />
-            ))}
+            {Array.isArray(patients) && patients.length > 0 ? (
+              patients.map(patient => (
+                <Picker.Item key={patient._id} label={patient.name} value={patient._id} />
+              ))
+            ) : (
+              <Picker.Item label="No patients available" value="" />
+            )}
           </Picker>
         </View>
 

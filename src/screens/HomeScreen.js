@@ -24,8 +24,33 @@ const HomeScreen = ({ navigation, route }) => {
     );
   };
 
+  const handleLogout = () => {
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Logout',
+        onPress: () => {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Login' }], // Navigate back to the login screen
+          });
+        },
+      },
+    ]);
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      {/* Logout Button */}
+      <View style={styles.logoutContainer}>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Text style={styles.logoutButtonText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Dashboard Overview Section */}
       <View style={styles.dashboard}>
         <Text style={styles.welcomeText}>Welcome, {username}!</Text>
@@ -104,7 +129,7 @@ const HomeScreen = ({ navigation, route }) => {
           </TouchableOpacity>
         </View>
       </View>
-            
+
       {/* Patient Records Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Patient Records</Text>
@@ -153,6 +178,22 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: width * 0.05,
     paddingVertical: height * 0.02,
+  },
+  logoutContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end', // Aligns the button to the top-right corner
+    marginBottom: height * 0.02,
+  },
+  logoutButton: {
+    backgroundColor: '#d9534f',
+    paddingVertical: height * 0.01,
+    paddingHorizontal: width * 0.05,
+    borderRadius: 8,
+  },
+  logoutButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: width * 0.04,
   },
   dashboard: {
     marginBottom: height * 0.02,

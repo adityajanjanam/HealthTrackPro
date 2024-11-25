@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -13,60 +14,52 @@ const LoginScreen = ({ navigation }) => {
   };
 
   const handleLogin = async () => {
-    // Validation checks before proceeding with the login request
     if (!email || !password) {
       Alert.alert('Error', 'Please fill in both email and password fields.');
       return;
     }
-
+  
     if (!isValidEmail(email)) {
       Alert.alert('Error', 'Please enter a valid email address.');
       return;
     }
-
+  
     if (password.length < 6) {
       Alert.alert('Error', 'Password must be at least 6 characters long.');
       return;
     }
-
+  
     setLoading(true);
     try {
-      const response = await fetch(`http://192.168.2.246:5000/login`, {
+      const response = await fetch('http://192.168.2.246:5000/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email, password }),
       });
-
+  
       const data = await response.json();
-
-      if (response.ok) {
+      console.log('Server response:', data); // Debug log
+  
+      if (response.ok && data.accessToken) {
+        await AsyncStorage.setItem('accessToken', data.accessToken); // Ensure token is valid
         const username = email.split('@')[0];
         Alert.alert('Success', 'Logged in successfully!', [
           {
             text: 'OK',
-            onPress: () => navigation.replace('Home', { username }), // Pass the username to Home Screen
+            onPress: () => navigation.replace('Home', { username }),
           },
         ]);
+      } else if (data.message === 'Invalid credentials') {
+        Alert.alert('Error', 'Incorrect email or password. Please try again.');
+      } else if (data.message === 'User not found') {
+        Alert.alert('User Not Found', 'No account found with this email. Would you like to sign up?', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign Up', onPress: () => navigation.navigate('SignUp') },
+        ]);
       } else {
-        if (data.message === 'Invalid credentials') {
-          Alert.alert('Error', 'Incorrect email or password. Please try again.');
-        } else if (data.message === 'User not found') {
-          // Suggest sign-up if the user does not exist
-          Alert.alert('User Not Found', 'No account found with this email. Would you like to sign up?', [
-            {
-              text: 'Cancel',
-              style: 'cancel',
-            },
-            {
-              text: 'Sign Up',
-              onPress: () => navigation.navigate('SignUp'),
-            },
-          ]);
-        } else {
-          Alert.alert('Error', 'Login failed. Please try again.');
-        }
+        Alert.alert('Error', 'Login failed. Please try again.');
       }
     } catch (error) {
       console.error('Error during login:', error);
@@ -75,12 +68,13 @@ const LoginScreen = ({ navigation }) => {
       setLoading(false);
     }
   };
+  
 
   return (
     <View style={styles.container}>
       <View style={styles.card}>
         <Image
-          source={require('../../assets/healthtrack_logo.png')}
+          source={require('../../assets/healthtrack_logo.png')} // Replace with your actual logo path
           style={styles.logo}
           resizeMode="contain"
         />
