@@ -1,4 +1,6 @@
-Here’s the updated `README.md` for **HealthTrackPro** with all the recent changes and improvements:
+# HealthTrackPro
+HealthTrackPro is a React Native mobile app for healthcare providers to track and monitor patient data. It allows adding and viewing patient records, managing clinical data like blood pressure and heart rate, and alerting providers to critical conditions. Designed for efficient healthcare data management with an intuitive interface.
+Here’s a sample `README.md` for your **HealthTrackPro** project:
 
 ```markdown
 # HealthTrackPro
@@ -11,30 +13,9 @@ Here’s the updated `README.md` for **HealthTrackPro** with all the recent chan
 - **Track Clinical Data**: Monitor patient vitals like blood pressure (systolic/diastolic), heart rate, respiratory rate, blood oxygen level, and more.
 - **Critical Condition Alerts**: Automatically identify patients who are in critical condition based on predefined thresholds for clinical data.
 - **Patient Symptoms**: Record patient symptoms such as cough, fever, fatigue, and shortness of breath.
-- **User Authentication**: Secure login and registration for healthcare providers using JWT tokens.
-- **API Testing**: Comprehensive unit and integration tests for APIs.
+- **User Authentication**: Secure login and registration for healthcare providers.
 - **24/7 Assistance**: Access to live support for healthcare providers.
-
-## API Testing
-
-The project includes unit and integration tests for the following APIs:
-
-- **`tests/user.test.js`**: Tests for user authentication APIs, including login and registration.
-- **`tests/patient.test.js`**: Tests for patient management APIs, such as adding, updating, deleting, and retrieving patient information.
-- **`tests/patientRecord.test.js`**: Tests for clinical record APIs, including adding and fetching clinical records for patients.
-
-### Testing Commands
-
-- **Clear Jest Cache**:
-  ```bash
-  npx jest --clearCache
-  ```
-
-- **Run Tests**:
-  ```bash
-  npm test
-  ```
-
+  
 ## Screens
 
 1. **Welcome Screen**: Initial landing page that guides users to login or sign up.
@@ -46,7 +27,7 @@ The project includes unit and integration tests for the following APIs:
 7. **Patient Detail**: Detailed view of an individual patient’s records and clinical data.
 8. **Critical Condition Alert**: List of patients currently in critical condition based on their vitals.
 9. **Forgot Password**: Allows healthcare providers to reset their password.
-
+  
 ## Tech Stack
 
 - **React Native**: For building the mobile application.
@@ -78,15 +59,14 @@ The project includes unit and integration tests for the following APIs:
 
 4. **Start the app**:
    ```bash
-   expo start
+   npx expo start
    ```
 
 5. **Access the app**:
    You can scan the QR code from the Expo DevTools to run the app on a physical device, or use an emulator.
 
+
 ## License
 
 This project is licensed under the MIT License.
 ```
-
-This updated `README.md` includes a detailed overview of the project, features, testing setup, and environment variable configuration.
