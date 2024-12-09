@@ -1,72 +1,128 @@
-# HealthTrackPro
-HealthTrackPro is a React Native mobile app for healthcare providers to track and monitor patient data. It allows adding and viewing patient records, managing clinical data like blood pressure and heart rate, and alerting providers to critical conditions. Designed for efficient healthcare data management with an intuitive interface.
-Here’s a sample `README.md` for your **HealthTrackPro** project:
+### HealthTrackPro
 
-```markdown
-# HealthTrackPro
+HealthTrackPro is a React Native mobile application designed to help healthcare providers efficiently manage and monitor patient clinical data. This application connects with a Node.js backend and a MongoDB database to store, retrieve, and process patient information and clinical records.
 
-**HealthTrackPro** is a React Native mobile application designed for healthcare providers to track and monitor patient clinical data efficiently. This app helps providers manage patients' vital information, including blood pressure, heart rate, and symptoms, and alerts providers when a patient is in critical condition.
+---
 
-## Features
+### Table of Contents
+1. [Features](#features)
+2. [Technologies Used](#technologies-used)
+3. [Installation](#installation)
+4. [API Endpoints](#api-endpoints)
+5. [Screens](#screens)
+6. [License](#license)
 
-- **Add and View Patients**: Easily add new patients or view existing patient records.
-- **Track Clinical Data**: Monitor patient vitals like blood pressure (systolic/diastolic), heart rate, respiratory rate, blood oxygen level, and more.
-- **Critical Condition Alerts**: Automatically identify patients who are in critical condition based on predefined thresholds for clinical data.
-- **Patient Symptoms**: Record patient symptoms such as cough, fever, fatigue, and shortness of breath.
-- **User Authentication**: Secure login and registration for healthcare providers.
-- **24/7 Assistance**: Access to live support for healthcare providers.
-  
-## Screens
+---
 
-1. **Welcome Screen**: Initial landing page that guides users to login or sign up.
-2. **Login & Sign Up**: Secure authentication for healthcare providers.
-3. **Home Screen**: Dashboard showing total patients, critical alerts, and quick actions to manage patient data.
-4. **Add Patient**: Form to create new patient records.
-5. **Add Patient Record**: Form to record clinical data for patients, with options to record vitals and symptoms.
-6. **View Patients**: List all patients and filter by name or critical condition.
-7. **Patient Detail**: Detailed view of an individual patient’s records and clinical data.
-8. **Critical Condition Alert**: List of patients currently in critical condition based on their vitals.
-9. **Forgot Password**: Allows healthcare providers to reset their password.
-  
-## Tech Stack
+### Features
+- **Patient Management**:
+  - Add, view, and edit patient details.
+  - Maintain a centralized list of all patients.
+- **Clinical Data**:
+  - Add and view clinical records, including:
+    - Blood Pressure
+    - Heart Rate
+    - Blood Oxygen Levels
+    - Respiratory Rate
+  - Identify patients in critical condition.
+- **Secure Authentication**:
+  - Login/logout functionality with token-based authentication.
+- **User-friendly Interface**:
+  - Responsive UI for healthcare providers.
+  - Clear navigation across features.
 
-- **React Native**: For building the mobile application.
-- **Node.js**: Backend server for handling API requests.
-- **Express**: To manage backend routes and server logic.
-- **MongoDB**: Database to store patient and user data.
-- **React Navigation**: For navigating between screens.
-- **Expo**: For building and running the app in development.
+---
 
-## How to Run the Project
+### Technologies Used
+- **Frontend**: React Native, Expo, AsyncStorage
+- **Backend**: Node.js, Express.js
+- **Database**: MongoDB (Atlas)
+- **Other Tools**: Postman (API Testing), Git (Version Control)
 
-1. **Clone the repository**:
+---
+
+### Installation
+
+#### Prerequisites
+- Node.js (>=14.x)
+- MongoDB (local or Atlas)
+- Expo CLI
+
+#### Backend Setup
+1. Clone the repository:
    ```bash
    git clone https://github.com/adityajanjanam/HealthTrackPro.git
-   cd HealthTrackPro
    ```
-
-2. **Install dependencies** for the mobile app:
-   ```bash
-   yarn install
-   ```
-
-3. **Run the backend server**:
+2. Navigate to the backend directory:
    ```bash
    cd backend
+   ```
+3. Install dependencies:
+   ```bash
    npm install
+   ```
+4. Configure the `.env` file with your MongoDB URI and JWT secret:
+   ```
+   MONGO_URI=<your-mongodb-uri>
+   JWT_SECRET=<your-secret-key>
+   ```
+5. Start the server:
+   ```bash
    npm start
    ```
+   The backend will run on `http://localhost:5000`.
 
-4. **Start the app**:
+#### Frontend Setup
+1. Navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Start the development server:
    ```bash
    expo start
    ```
 
-5. **Access the app**:
-   You can scan the QR code from the Expo DevTools to run the app on a physical device, or use an emulator.
+---
 
+### API Endpoints
 
-## License
+| Method | Endpoint             | Description                     |
+|--------|-----------------------|---------------------------------|
+| POST   | `/auth/login`         | User login                     |
+| GET    | `/patients`           | Retrieve all patients          |
+| POST   | `/patients`           | Add a new patient              |
+| GET    | `/patients/:id`       | Get a specific patient         |
+| POST   | `/patient-records`    | Add a patient clinical record  |
+| GET    | `/patient-records`    | Retrieve clinical records      |
 
-This project is licensed under the MIT License.
-```
+---
+
+### Screens
+
+1. **Login Screen**:
+   - Secure user login with token-based authentication.
+2. **Home Screen**:
+   - Welcome message and quick links to key features.
+3. **Manage Patients**:
+   - Add, view, and list all patients.
+4. **Patient Records**:
+   - Add and view detailed clinical records.
+5. **App Features**:
+   - Highlights key app functionalities, such as managing vital signs and health information.
+
+---
+
+### License
+This project is licensed under the MIT License. See the `LICENSE` file for more details.
+
+---
+
+### Contributors
+- **Aditya Janjanam** - [GitHub](https://github.com/adityajanjanam)
+- Open for collaboration! Feel free to fork and contribute.
+
+---
