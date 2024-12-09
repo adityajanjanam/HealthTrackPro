@@ -1,98 +1,164 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { Picker } from '@react-native-picker/picker';
+
+const API_BASE_URL = 'http://10.0.2.2:5000';
 
 const ViewPatientRecordsScreen = ({ navigation }) => {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('name');
-  const [patients, setPatients] = useState([]);
+  const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Fetch patient data from the backend
-    const fetchPatients = async () => {
-      setLoading(true);
-      try {
-        console.log('Fetching patient data...');
-        const response = await fetch('http://192.168.2.246:5000/patient-records');  
-        if (!response.ok) {
-          console.error('Response error:', response.status);
-          throw new Error(`Failed to fetch patient records: ${response.status}`);
-        }
-  
-        const data = await response.json();
-        console.log('Patients fetched successfully:', data);
-        setPatients(data);
-      } catch (error) {
-        console.error('Error fetching patient data:', error);
-        alert(`Failed to fetch patient records: ${error.message}`);
-      } finally {
-        setLoading(false);
+  const fetchPatientRecords = async () => {
+    setLoading(true);
+    try {
+      // Retrieve token from AsyncStorage
+      const token = await AsyncStorage.getItem('accessToken');
+      if (!token) {
+        Alert.alert('Error', 'Your session has expired. Please log in again.');
+        navigation.replace('Login');
+        return;
       }
-    };
-  
-    fetchPatients();
+
+      // Make the API request
+      const response = await fetch(`${API_BASE_URL}/patient-records`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      // Handle non-JSON responses or API errors
+      const rawText = await response.text();
+      if (!response.ok) {
+        console.error('Error fetching records:', rawText);
+        throw new Error('Failed to fetch patient records.');
+      }
+
+      const data = JSON.parse(rawText);
+      setRecords(data);
+    } catch (error) {
+      console.error('Error:', error.message);
+      Alert.alert('Error', 'Failed to fetch patient records. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPatientRecords();
   }, []);
-  
-  // Show a loading message while data is being fetched
+
+  const handleSort = (a, b) => {
+    switch (sortBy) {
+      case 'name':
+        return (a.patientId?.name || '').localeCompare(b.patientId?.name || '');
+      case 'date':
+        return new Date(b.date) - new Date(a.date);
+      case 'testType':
+        return (a.testType || '').localeCompare(b.testType || '');
+      case 'reading':
+        return parseFloat(b.reading) - parseFloat(a.reading);
+      default:
+        return 0;
+    }
+  };
+
+  const filteredRecords = records
+    .filter((record) => record.patientId?.name?.toLowerCase().includes(search.toLowerCase()))
+    .sort(handleSort);
+
   if (loading) {
     return (
-      <View style={styles.container}>
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator size="large" color="#3A7D44" />
         <Text>Loading patient records...</Text>
       </View>
     );
   }
 
-  // Show message if no records found
-  if (!patients || patients.length === 0) {
+  if (!records || records.length === 0) {
     return (
       <View style={styles.container}>
-        <Text style={styles.noDataText}>No records found for this patient.</Text>
+        <Text style={styles.noDataText}>No patient records available.</Text>
       </View>
     );
   }
 
-  // Filter patients based on search input
-  const filteredPatients = patients
-    .filter(patient => patient.name.toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => {
-      if (sortBy === 'name') return a.name.localeCompare(b.name);
-      if (sortBy === 'lastVisit') return new Date(b.lastVisit) - new Date(a.lastVisit);
-      if (sortBy === 'age') return b.age - a.age;
-    });
-
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      {/* Header */}
+      <Text style={styles.headerTitle}>View Patient Records</Text>
+
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <Icon name="magnify" size={20} color="#A8A8A8" style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Filter by name"
-          placeholderTextColor="#888"
+          placeholder="Search by patient name"
+          placeholderTextColor="#A8A8A8"
           value={search}
           onChangeText={setSearch}
         />
-        <TouchableOpacity style={styles.sortButton} onPress={() => setSortBy('lastVisit')}>
-          <Text style={styles.sortButtonText}>Sort by Last Visit</Text>
-        </TouchableOpacity>
       </View>
 
+      {/* Dropdown for Sorting */}
+      <View style={styles.sortContainer}>
+        <Text style={styles.sortLabel}>Sort By:</Text>
+        <View style={styles.dropdownWrapper}>
+          <Picker
+            selectedValue={sortBy}
+            style={styles.dropdown}
+            onValueChange={(itemValue) => setSortBy(itemValue)}
+          >
+            <Picker.Item label="Name" value="name" />
+            <Picker.Item label="Test Type" value="testType" />
+            <Picker.Item label="Date" value="date" />
+            <Picker.Item label="Reading" value="reading" />
+          </Picker>
+        </View>
+      </View>
+
+      {/* Patient Records List */}
       <ScrollView style={styles.list}>
-        {filteredPatients.map((patient, index) => (
-          <View key={index} style={[styles.patientCard, patient.isCritical && styles.criticalCard]}>
-            <Text style={styles.patientName}>
-              {patient.name}, {patient.age}
+        {filteredRecords.map((record, index) => (
+          <View key={index} style={styles.recordCard}>
+            <Text style={styles.recordTitle}>
+              Patient: {record.patientId?.name || 'Unknown'}
             </Text>
-            <Text style={styles.patientDetails}>
-              Chronic Conditions: {patient.conditions}
+            <Text style={styles.recordDetails}>
+              Test Type: {record.testType || 'N/A'}
             </Text>
-            <Text style={styles.patientDetails}>
-              Last Visit: {patient.lastVisit}
+            <Text style={styles.recordDetails}>
+              Reading: {record.reading || 'N/A'}
             </Text>
-            {patient.isCritical && <Text style={styles.criticalText}>Critical Condition</Text>}
+            <Text style={styles.recordDetails}>
+              Symptoms: {record.symptoms?.join(', ') || 'None'}
+            </Text>
+            <Text style={styles.recordDetails}>
+              Date: {record.date ? new Date(record.date).toLocaleString() : 'N/A'}
+            </Text>
             <TouchableOpacity
               style={styles.detailsButton}
-              onPress={() => navigation.navigate('PatientDetail', { patient })}
+              onPress={() =>
+                navigation.navigate('PatientDetail', {
+                  patientId: record.patientId?._id,
+                })
+              }
             >
-              <Text style={styles.detailsButtonText}>View Details</Text>
+              <Text style={styles.detailsButtonText}>View Patient</Text>
             </TouchableOpacity>
           </View>
         ))}
@@ -101,86 +167,112 @@ const ViewPatientRecordsScreen = ({ navigation }) => {
   );
 };
 
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f8f8',
+    backgroundColor: '#F8F9FA',
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingVertical: 10,
   },
-  header: {
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#3A7D44',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  searchContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderRadius: 10,
+    paddingHorizontal: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+    marginBottom: 20,
+  },
+  searchIcon: {
+    marginRight: 10,
   },
   searchInput: {
     flex: 1,
-    height: 40,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-    paddingHorizontal: 10,
+    height: 50,
+    fontSize: 16,
+    color: '#333',
+  },
+  sortContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  sortLabel: {
+    fontSize: 16,
+    color: '#3A7D44',
     marginRight: 10,
-    fontSize: 16,
   },
-  sortButton: {
-    backgroundColor: '#000',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+  dropdownWrapper: {
+    flex: 1,
+    backgroundColor: '#FFF',
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  sortButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
+  dropdown: {
+    height: 50,
+    color: '#333',
   },
   list: {
     marginTop: 10,
   },
-  patientCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
+  recordCard: {
     padding: 15,
-    marginBottom: 15,
+    backgroundColor: '#FFF',
+    marginBottom: 10,
+    borderRadius: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowRadius: 3,
+    elevation: 3,
   },
-  criticalCard: {
-    borderColor: 'red',
-    borderWidth: 2,
-  },
-  patientName: {
-    fontSize: 18,
+  recordTitle: {
     fontWeight: 'bold',
-    marginBottom: 5,
+    fontSize: 16,
+    color: '#3A7D44',
   },
-  patientDetails: {
+  recordDetails: {
+    marginTop: 5,
     fontSize: 14,
-    color: '#6e6e6e',
-    marginBottom: 10,
-  },
-  criticalText: {
-    color: 'red',
-    fontWeight: 'bold',
-    marginBottom: 10,
+    color: '#555',
   },
   detailsButton: {
-    backgroundColor: '#000',
-    paddingVertical: 10,
+    marginTop: 10,
+    backgroundColor: '#3A7D44',
+    padding: 10,
     borderRadius: 8,
     alignItems: 'center',
   },
   detailsButtonText: {
-    color: '#fff',
+    color: '#FFF',
     fontWeight: 'bold',
     fontSize: 14,
   },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   noDataText: {
-    fontSize: 16,
     textAlign: 'center',
-    color: '#888',
+    fontSize: 18,
+    color: '#555',
   },
 });
 

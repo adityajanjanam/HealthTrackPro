@@ -1,106 +1,174 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const API_BASE_URL = 'http://10.0.2.2:5000';
 
 const PatientDetailScreen = ({ navigation, route }) => {
-  const { patientId } = route.params;
+  const { patientId } = route.params || {};
   const [patientData, setPatientData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!patientId) {
-      console.error('Patient ID is undefined.');
+      Alert.alert('Error', 'Patient ID is missing.', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
       return;
     }
-  
-    // Fetch patient data from backend server
+
     const fetchPatientData = async () => {
+      console.log(`Fetching details for Patient ID: ${patientId}`);
       try {
-        console.log('Fetching data for patient ID:', patientId);
-        const response = await fetch(`http://192.168.2.246:5000/patients/${patientId}`);
+        setLoading(true);
+        const token = await AsyncStorage.getItem('accessToken');
+        if (!token) {
+          Alert.alert('Authentication Error', 'Please log in again.', [
+            { text: 'OK', onPress: () => navigation.navigate('Login') },
+          ]);
+          return;
+        }
+
+        const response = await fetch(`${API_BASE_URL}/patients/${patientId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
         if (response.ok) {
           const data = await response.json();
+          console.log('Fetched Patient Data:', data);
           setPatientData(data);
         } else {
-          console.error('Failed to fetch patient data:', response.status);
-          alert(`Failed to fetch patient data: ${response.status}`);
+          const errorData = await response.json();
+          Alert.alert('Error', errorData.message || 'Failed to fetch patient data.');
         }
       } catch (error) {
         console.error('Error fetching patient data:', error);
-        alert(`Error fetching patient data: ${error.message}`);
+        Alert.alert('Error', 'An unexpected error occurred while fetching patient data.');
+      } finally {
+        setLoading(false);
       }
     };
-  
+
     fetchPatientData();
-  }, [patientId]);
-  
-  
+  }, [patientId, navigation]);
 
   const handleEditInfo = () => {
-    alert('Edit info functionality not yet implemented.');
+    if (!patientData) {
+      Alert.alert('Error', 'Patient data is missing. Cannot edit.');
+      return;
+    }
+    navigation.navigate('EditPatientInfo', { patient: patientData });
   };
 
-  const handleDeleteInfo = () => {
-    alert('Delete info functionality not yet implemented.');
+  const handleDeleteInfo = async () => {
+    Alert.alert('Confirm Delete', 'Are you sure you want to delete this patient?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const token = await AsyncStorage.getItem('accessToken');
+            if (!token) {
+              Alert.alert('Authentication Error', 'Please log in again.', [
+                { text: 'OK', onPress: () => navigation.navigate('Login') },
+              ]);
+              return;
+            }
+
+            const response = await fetch(`${API_BASE_URL}/patients/${patientId}`, {
+              method: 'DELETE',
+              headers: { Authorization: `Bearer ${token}` },
+            });
+
+            if (response.ok) {
+              Alert.alert('Success', 'Patient deleted successfully.');
+              navigation.goBack();
+            } else {
+              const errorData = await response.json();
+              Alert.alert('Error', errorData.message || 'Failed to delete patient.');
+            }
+          } catch (error) {
+            console.error('Error deleting patient:', error);
+            Alert.alert('Error', 'An unexpected error occurred while deleting the patient.');
+          }
+        },
+      },
+    ]);
   };
+
+  if (loading) {
+    return (
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator size="large" color="#007bff" />
+        <Text>Loading patient details...</Text>
+      </View>
+    );
+  }
 
   if (!patientData) {
     return (
       <View style={styles.container}>
-        <Text style={styles.header}>Loading...</Text>
+        <Text style={styles.header}>No data available for this patient.</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>Patient Detail View</Text>
-      {/* Personal Details */}
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>Patient Details</Text>
+
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Personal Details</Text>
         <Text style={styles.detailText}>
-          <Text style={styles.label}>Name: </Text>{patientData.name}
+          <Text style={styles.label}>Name: </Text>
+          {patientData.name || 'N/A'}
         </Text>
         <Text style={styles.detailText}>
-          <Text style={styles.label}>Age: </Text>{patientData.age}
+          <Text style={styles.label}>Contact: </Text>
+          {patientData.contact || 'N/A'}
         </Text>
         <Text style={styles.detailText}>
-          <Text style={styles.label}>Contact: </Text>{patientData.contact}
+          <Text style={styles.label}>Email: </Text>
+          {patientData.email || 'N/A'}
         </Text>
       </View>
-      {/* Clinical Data */}
+
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Clinical Data</Text>
         <Text style={styles.detailText}>
-          <Text style={styles.label}>Blood Pressure: </Text>{patientData.bloodPressure} {patientData.isCritical && <Text style={styles.critical}>Critical</Text>}
+          <Text style={styles.label}>Blood Pressure: </Text>
+          {patientData.bloodPressure || 'N/A'}
         </Text>
         <Text style={styles.detailText}>
-          <Text style={styles.label}>Heart Rate: </Text>{patientData.heartRate}
+          <Text style={styles.label}>Heart Rate: </Text>
+          {patientData.heartRate || 'N/A'}
         </Text>
         <Text style={styles.detailText}>
-          <Text style={styles.label}>Blood Oxygen Level: </Text>{patientData.oxygenLevel}
+          <Text style={styles.label}>Oxygen Level: </Text>
+          {patientData.oxygenLevel || 'N/A'}
         </Text>
         <Text style={styles.detailText}>
-          <Text style={styles.label}>Respiratory Rate: </Text>{patientData.respiratoryRate}
+          <Text style={styles.label}>Respiratory Rate: </Text>
+          {patientData.respiratoryRate || 'N/A'}
         </Text>
       </View>
-      {/* Medical History */}
+
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Medical History</Text>
-        {patientData.medicalHistory.map((entry, index) => (
-          <Text key={index} style={styles.detailText}>
-            <Text style={styles.dateLabel}>{entry.date}: </Text>{entry.description}
-          </Text>
-        ))}
+        <Text style={styles.detailText}>
+          {patientData.medicalHistory || 'No medical history available.'}
+        </Text>
       </View>
-      {/* Patient Records */}
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Patient Records</Text>
-        {patientData.records.map((record, index) => (
-          <Text key={index} style={styles.detailText}>
-            <Text style={styles.dateLabel}>{record.date}: </Text>{record.description}
-          </Text>
-        ))}
-      </View>
-      {/* Buttons */}
+
       <View style={styles.buttonContainer}>
         <TouchableOpacity style={styles.editButton} onPress={handleEditInfo}>
           <Text style={styles.buttonText}>Edit Info</Text>
@@ -109,21 +177,27 @@ const PatientDetailScreen = ({ navigation, route }) => {
           <Text style={styles.buttonText}>Delete Info</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f4f4f4',
+    backgroundColor: '#f8f8f8',
     padding: 20,
   },
-  header: {
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  title: {
     fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 20,
     textAlign: 'center',
+    marginBottom: 20,
+    color: '#007bff',
   },
   card: {
     backgroundColor: '#ffffff',
@@ -148,21 +222,13 @@ const styles = StyleSheet.create({
   label: {
     fontWeight: 'bold',
   },
-  dateLabel: {
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  critical: {
-    color: 'red',
-    fontWeight: 'bold',
-  },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 20,
   },
   editButton: {
-    backgroundColor: '#000',
+    backgroundColor: '#007bff',
     paddingVertical: 12,
     paddingHorizontal: 25,
     borderRadius: 8,

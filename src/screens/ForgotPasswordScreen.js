@@ -1,17 +1,28 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const ForgotPasswordScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleForgotPassword = async () => {
-    if (!email) {
-      Alert.alert('Error', 'Please enter a valid email address.');
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      Alert.alert('Validation Error', 'Please enter a valid email address.');
       return;
     }
 
+    setIsLoading(true); // Start loading spinner
     try {
-      const response = await fetch('http://192.168.2.246:5000/forgot-password', {
+      const response = await fetch('http://10.0.2.2:5000/forgot-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -19,79 +30,95 @@ const ForgotPasswordScreen = ({ navigation }) => {
         body: JSON.stringify({ email }),
       });
 
-      if (response.ok) {
-        Alert.alert(
-          'Password Reset',
-          `If an account with the email ${email} exists, you will receive a password reset email shortly.`
-        );
-        navigation.navigate('Login');
-      } else {
-        const errorData = await response.json();
-        Alert.alert('Error', errorData.message || 'Failed to send reset link.');
+      if (!response.ok) {
+        const errorData = await response.text();
+        Alert.alert('Error', errorData || 'Failed to send reset link.');
+        return;
       }
+
+      const data = await response.json();
+      Alert.alert(
+        'Password Reset',
+        data.message ||
+          `If an account with ${email} exists, you will receive a password reset email shortly.`
+      );
+      navigation.navigate('Login');
     } catch (error) {
       console.error('Error sending reset link:', error);
       Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
+    } finally {
+      setIsLoading(false); // Stop loading spinner
     }
   };
 
   return (
-    <View style={styles.container}>
+    <LinearGradient colors={['#6A11CB', '#2575FC']} style={styles.container}>
       <View style={styles.card}>
         <Text style={styles.title}>Forgot Password?</Text>
         <Text style={styles.subtitle}>
-          Please enter your registered email address to reset your password.
+          Enter your registered email address, and we’ll send you a reset link.
         </Text>
         <TextInput
           style={styles.input}
-          placeholder="Email"
+          placeholder="Email Address"
           placeholderTextColor="#aaa"
           value={email}
           onChangeText={(text) => setEmail(text)}
+          keyboardType="email-address"
+          autoCapitalize="none"
         />
-        <TouchableOpacity style={styles.button} onPress={handleForgotPassword}>
-          <Text style={styles.buttonText}>Send Reset Link</Text>
+        {isLoading ? (
+          <ActivityIndicator size="large" color="#6A11CB" style={styles.loader} />
+        ) : (
+          <TouchableOpacity style={styles.button} onPress={handleForgotPassword}>
+            <LinearGradient
+              colors={['#6A11CB', '#2575FC']}
+              style={styles.gradientButton}
+            >
+              <Text style={styles.buttonText}>Send Reset Link</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+          <Text style={styles.link}>Back to Login</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f8f8',
-    alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 20,
+    alignItems: 'center',
   },
   card: {
-    width: '100%',
+    width: '90%',
     maxWidth: 400,
     backgroundColor: '#fff',
     borderRadius: 15,
     padding: 30,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
-    shadowRadius: 5,
+    shadowRadius: 8,
     elevation: 8,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
+    color: '#333',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 15,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
+    color: '#666',
     textAlign: 'center',
-    color: '#6e6e6e',
-    marginBottom: 20,
+    marginBottom: 25,
+    lineHeight: 22,
   },
   input: {
     width: '100%',
@@ -99,21 +126,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
     borderRadius: 8,
     paddingHorizontal: 15,
-    marginBottom: 20,
     fontSize: 16,
+    marginBottom: 20,
   },
   button: {
-    backgroundColor: '#000',
-    paddingVertical: 15,
-    borderRadius: 8,
     width: '100%',
+    height: 50,
+    borderRadius: 8,
+    marginBottom: 15,
+  },
+  gradientButton: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 10,
+    borderRadius: 8,
   },
   buttonText: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  link: {
+    color: '#6A11CB',
+    fontSize: 15,
+    textDecorationLine: 'underline',
+    marginTop: 10,
+  },
+  loader: {
+    marginTop: 10,
   },
 });
 

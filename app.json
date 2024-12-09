@@ -3,6 +3,9 @@
     "name": "HealthTrackPro",
     "slug": "HealthTrackPro",
     "version": "1.0.0",
+    "updates": {
+      "enabled": true
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -28,6 +31,7 @@
       "eas": {
         "projectId": "0af3a409-aa97-4972-8a4d-74627b9340f2"
       }
-    }
+    },
+    "newArchEnabled": true
   }
 }

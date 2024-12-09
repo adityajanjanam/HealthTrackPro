@@ -1,13 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const BASE_URL = 'http://10.0.2.2:5000';
 
 const CriticalConditionAlertScreen = ({ navigation }) => {
   const [criticalPatients, setCriticalPatients] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const fetchCriticalPatients = async () => {
+      setIsLoading(true);
       try {
-        const response = await fetch('http://192.168.2.246:5000/patients/critical'); // Replace with actual endpoint
+        const token = await AsyncStorage.getItem('accessToken');
+        if (!token) {
+          Alert.alert('Authentication Error', 'You must log in again.');
+          navigation.navigate('Login');
+          return;
+        }
+
+        const response = await fetch(`${BASE_URL}/patients/critical`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
         if (response.ok) {
           const data = await response.json();
           setCriticalPatients(data);
@@ -18,39 +36,45 @@ const CriticalConditionAlertScreen = ({ navigation }) => {
       } catch (error) {
         console.error('Error fetching critical patients:', error);
         Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchCriticalPatients();
-  }, []);
+  }, [navigation]);
 
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Critical Condition Patients</Text>
-      
-      <ScrollView style={styles.list}>
-        {criticalPatients.length === 0 ? (
-          <Text style={styles.noAlerts}>No patients in critical condition.</Text>
-        ) : (
-          criticalPatients.map((patient, index) => (
-            <View key={index} style={styles.patientCard}>
-              <Text style={styles.patientName}>
-                {patient.name}, {patient.age}
-              </Text>
-              <Text style={styles.patientDetails}>Heart Rate: {patient.heartRate} bpm</Text>
-              <Text style={styles.patientDetails}>Blood Pressure: {patient.bloodPressure}</Text>
-              <Text style={styles.patientDetails}>Oxygen Level: {patient.oxygenLevel}</Text>
 
-              <TouchableOpacity
-                style={styles.detailsButton}
-                onPress={() => navigation.navigate('PatientDetail', { patient })}
-              >
-                <Text style={styles.detailsButtonText}>View Details</Text>
-              </TouchableOpacity>
-            </View>
-          ))
-        )}
-      </ScrollView>
+      {isLoading ? (
+        <ActivityIndicator size="large" color="#000" style={styles.loader} />
+      ) : (
+        <ScrollView style={styles.list}>
+          {criticalPatients.length === 0 ? (
+            <Text style={styles.noAlerts}>No patients in critical condition.</Text>
+          ) : (
+            criticalPatients.map((patient, index) => (
+              <View key={index} style={styles.patientCard}>
+                <Text style={styles.patientName}>
+                  {patient.name}, {patient.age}
+                </Text>
+                <Text style={styles.patientDetails}>Heart Rate: {patient.heartRate} bpm</Text>
+                <Text style={styles.patientDetails}>Blood Pressure: {patient.bloodPressure}</Text>
+                <Text style={styles.patientDetails}>Oxygen Level: {patient.oxygenLevel}%</Text>
+
+                <TouchableOpacity
+                  style={styles.detailsButton}
+                  onPress={() => navigation.navigate('PatientDetail', { patient })}
+                >
+                  <Text style={styles.detailsButtonText}>View Details</Text>
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
+        </ScrollView>
+      )}
     </View>
   );
 };
@@ -67,6 +91,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 15,
     textAlign: 'center',
+  },
+  loader: {
+    marginTop: 20,
   },
   list: {
     flex: 1,

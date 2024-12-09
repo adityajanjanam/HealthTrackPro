@@ -1,148 +1,162 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Alert, Linking, Dimensions, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  Alert,
+  Dimensions,
+  ScrollView,
+  ActivityIndicator,
+} from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
+const BASE_URL = 'http://10.0.2.2:5000';
 
 const HomeScreen = ({ navigation, route }) => {
+  const [isLoading, setIsLoading] = useState(false);
   const username = route.params?.username || 'Healthcare Provider';
 
-  const handleHelpPress = () => {
-    Alert.alert(
-      '24/7 Assistance',
-      'Would you like to call our toll-free number: 1-800-123-4567?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
+  const fetchWithToken = async (endpoint, options = {}) => {
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      if (!token) {
+        Alert.alert('Error', 'You must log in again.');
+        navigation.navigate('Login');
+        return null;
+      }
+  
+      const response = await fetch(`${BASE_URL}${endpoint}`, {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          ...options.headers,
         },
-        {
-          text: 'Call',
-          onPress: () => Linking.openURL('tel:1-800-123-4567'),
-        },
-      ]
-    );
+      });
+  
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error Response:', errorText);
+        Alert.alert('Error', errorText);
+        return null;
+      }
+  
+      return await response.json();
+    } catch (error) {
+      console.error('Fetch Error:', error.message);
+      Alert.alert('Error', 'An unexpected error occurred.');
+      return null;
+    }
+  };
+  
+  
+
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.removeItem('accessToken');
+      navigation.replace('Login');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      Alert.alert('Error', 'Failed to log out. Please try again.');
+    }
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      {/* Dashboard Overview Section */}
-      <View style={styles.dashboard}>
-        <Text style={styles.welcomeText}>Welcome, {username}!</Text>
-      </View>
-
-      {/* Manage Patients Section */}
-      <View style={styles.card}>
-        <View style={styles.manageCard}>
-          <Image
-            source={require('../../assets/stethoscope.png')} // Replace with your image file
-            style={styles.image}
-            resizeMode="contain"
-          />
-          <Text style={styles.manageTitle}>Manage patient data efficiently!</Text>
-          <View style={styles.manageActions}>
-            <TouchableOpacity
-              style={styles.manageButton}
-              onPress={() => navigation.navigate('AddPatient')}
-            >
-              <Text style={styles.manageButtonText}>Add New Patients</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.manageButton}
-              onPress={async () => {
-                try {
-                  const response = await fetch('http://192.168.2.246:5000/patients');
-                  if (response.ok) {
-                    const data = await response.json();
-                    navigation.navigate('ListAllPatients', { patients: data });
-                  } else {
-                    Alert.alert('Error', 'Failed to fetch patient data');
-                  }
-                } catch (error) {
-                  console.error('Error fetching patient data:', error);
-                  Alert.alert('Error', 'An unexpected error occurred.');
-                }
-              }}
-            >
-              <Text style={styles.manageButtonText}>View All Patients</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-
-      {/* New Features Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>New Features</Text>
-        <View style={styles.recordsRow}>
-          <TouchableOpacity
-            style={styles.iconBoxDark}
-            onPress={() => navigation.navigate('AddPatientRecord')}
-          >
-            <Icon name="account-plus" size={30} color="#fff" />
-            <Text style={styles.iconLabel}>Add Patient Records</Text>
+    <ScrollView contentContainerStyle={styles.scrollViewContent}>
+      {isLoading && <ActivityIndicator size="large" color="#007bff" />}
+      {/* Header Section */}
+      <LinearGradient colors={['#007bff', '#00c6ff']} style={styles.header}>
+        <View style={styles.headerRow}>
+          <Text style={styles.welcomeText}>Welcome, {username}!</Text>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
+        </View>
+        <Image
+          source={require('../../assets/stethoscope.png')}
+          style={styles.bannerImage}
+          resizeMode="contain"
+        />
+      </LinearGradient>
 
+      {/* Manage Patients */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Manage Patients</Text>
+        <View style={styles.actionsRow}>
           <TouchableOpacity
-            style={styles.iconBoxDark}
+            style={styles.actionButton}
+            onPress={() => navigation.navigate('AddPatientScreen')}
+          >
+            <Icon name="account-plus" size={30} color="#007bff" />
+            <Text style={styles.actionText}>Add Patient</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionButton}
             onPress={async () => {
-              try {
-                const response = await fetch('http://192.168.2.246:5000/patient-records');
-                if (response.ok) {
-                  const data = await response.json();
-                  navigation.navigate('ViewPatientRecords', { records: data });
-                } else {
-                  Alert.alert('Error', 'Failed to fetch patient records');
-                }
-              } catch (error) {
-                console.error('Error fetching patient records:', error);
-                Alert.alert('Error', 'An unexpected error occurred.');
+              const data = await fetchWithToken('/patients');
+              if (data) {
+                navigation.navigate('ListAllPatients', { patients: data });
               }
             }}
           >
-            <Icon name="format-list-bulleted" size={30} color="#fff" />
-            <Text style={styles.iconLabel}>View Patient Records</Text>
+            <Icon name="account-multiple" size={30} color="#007bff" />
+            <Text style={styles.actionText}>View Patients</Text>
           </TouchableOpacity>
         </View>
       </View>
-            
-      {/* Patient Records Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Patient Records</Text>
-        <View style={styles.recordsRow}>
-          <View style={styles.iconBox}>
-            <Icon name="file-document-outline" size={30} color="#fff" />
-            <Text style={styles.iconLabel}>Clinical Info</Text>
-          </View>
-          <View style={styles.iconBox}>
-            <Icon name="heart-pulse" size={30} color="#fff" />
-            <Text style={styles.iconLabel}>Blood Pressure</Text>
-          </View>
-          <View style={styles.iconBox}>
-            <Icon name="medical-bag" size={30} color="#fff" />
-            <Text style={styles.iconLabel}>Health Records</Text>
-          </View>
-          <View style={styles.iconBox}>
-            <Icon name="heart" size={30} color="#fff" />
-            <Text style={styles.iconLabel}>Heart Rate</Text>
-          </View>
+
+      {/* Patient Records */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Patient Records</Text>
+        <View style={styles.actionsRow}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => navigation.navigate('AddPatientRecord')}
+          >
+            <Icon name="file-document-edit" size={30} color="#28a745" />
+            <Text style={styles.actionText}>Add Records</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+  style={styles.actionButton}
+  onPress={async () => {
+    const data = await fetchWithToken('/patient-records');
+    if (data) {
+      navigation.navigate('ViewPatientRecords', { records: data });
+    }
+  }}
+>
+  <Icon name="folder-open" size={30} color="#28a745" />
+  <Text style={styles.actionText}>View Records</Text>
+</TouchableOpacity>
+
         </View>
       </View>
 
-      {/* Live Support Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Live Support</Text>
-        <View style={styles.supportCard}>
-          <Image
-            source={require('../../assets/support.png')} // Replace with your image file
-            style={styles.supportImage}
-            resizeMode="contain"
-          />
-          <View style={styles.supportText}>
-            <Text style={styles.supportTitle}>24/7 Assistance</Text>
-            <TouchableOpacity style={styles.supportButton} onPress={handleHelpPress}>
-              <Text style={styles.supportButtonText}>Help</Text>
-            </TouchableOpacity>
-          </View>
+      {/* App Features */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>App Features</Text>
+        <View style={styles.featuresRow}>
+          <TouchableOpacity style={styles.featureBox}>
+            <Icon name="heart-pulse" size={30} color="#fff" />
+            <Text style={styles.featureText}>Heart Rate</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.featureBox}>
+            <Icon name="stethoscope" size={30} color="#fff" />
+            <Text style={styles.featureText}>Clinical Info</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.featureBox}>
+            <Icon name="medical-bag" size={30} color="#fff" />
+            <Text style={styles.featureText}>Health Records</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.featureBox}>
+            <Icon name="heart" size={30} color="#fff" />
+            <Text style={styles.featureText}>Blood Pressure</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </ScrollView>
@@ -150,127 +164,87 @@ const HomeScreen = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: width * 0.05,
-    paddingVertical: height * 0.02,
+  scrollViewContent: {
+    padding: 20,
+    backgroundColor: '#f8f9fa',
   },
-  dashboard: {
-    marginBottom: height * 0.02,
+  header: {
+    marginBottom: 20,
+    padding: 20,
+    borderRadius: 10,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   welcomeText: {
-    fontSize: width * 0.05,
+    fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: height * 0.01,
+    color: '#fff',
+  },
+  logoutButton: {
+    backgroundColor: '#ff4d4d',
+    padding: 10,
+    borderRadius: 5,
+  },
+  logoutText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  bannerImage: {
+    width: width * 0.9,
+    height: 150,
+    marginTop: 10,
   },
   card: {
-    marginBottom: height * 0.02,
-  },
-  manageCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fff',
     borderRadius: 10,
-    padding: width * 0.04,
-    alignItems: 'center',
+    padding: 20,
+    marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowRadius: 5,
+    elevation: 3,
   },
-  image: {
-    width: width * 0.3,
-    height: width * 0.3,
-    marginBottom: height * 0.01,
-  },
-  manageTitle: {
-    fontSize: width * 0.04,
+  cardTitle: {
+    fontSize: 18,
     fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: height * 0.01,
+    marginBottom: 10,
   },
-  manageActions: {
+  actionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
   },
-  manageButton: {
-    backgroundColor: '#000',
-    paddingVertical: height * 0.01,
-    paddingHorizontal: width * 0.04,
-    borderRadius: 8,
-  },
-  manageButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  section: {
-    marginBottom: height * 0.02,
-  },
-  sectionTitle: {
-    fontSize: width * 0.045,
-    fontWeight: 'bold',
-    marginBottom: height * 0.01,
-  },
-  recordsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  iconBox: {
+  actionButton: {
     width: '48%',
+    alignItems: 'center',
+    padding: 15,
+    borderRadius: 10,
+    backgroundColor: '#f1f1f1',
+  },
+  actionText: {
+    marginTop: 10,
+    textAlign: 'center',
+    fontSize: 14,
+  },
+  featuresRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  featureBox: {
+    width: '22%',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 10,
     backgroundColor: '#007bff',
-    padding: width * 0.05,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginBottom: height * 0.015,
   },
-  iconBoxDark: {
-    width: '48%',
-    backgroundColor: '#000',
-    padding: width * 0.05,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginBottom: height * 0.015,
-  },
-  iconLabel: {
+  featureText: {
+    marginTop: 5,
     color: '#fff',
-    marginTop: height * 0.01,
+    fontSize: 12,
     textAlign: 'center',
-  },
-  supportCard: {
-    flexDirection: 'row',
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
-    padding: width * 0.04,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  supportImage: {
-    width: width * 0.15,
-    height: width * 0.15,
-    marginRight: width * 0.04,
-  },
-  supportText: {
-    flex: 1,
-  },
-  supportTitle: {
-    fontSize: width * 0.04,
-    fontWeight: 'bold',
-  },
-  supportButton: {
-    marginTop: height * 0.01,
-    backgroundColor: '#000',
-    paddingVertical: height * 0.01,
-    paddingHorizontal: width * 0.05,
-    borderRadius: 8,
-  },
-  supportButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
   },
 });
 
