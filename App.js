@@ -17,7 +17,6 @@ import AddPatientRecordScreen from './src/screens/AddPatientRecordScreen';
 import ViewPatientRecordsScreen from './src/screens/ViewPatientRecordsScreen';
 import PatientDetailScreen from './src/screens/PatientDetailScreen';
 import ListAllPatientsScreen from './src/screens/ListAllPatientsScreen';
-import CriticalConditionAlertScreen from './src/screens/CriticalConditionAlertScreen';
 import EditPatientInfoScreen from './src/screens/EditPatientInfoScreen';
 
 const Stack = createStackNavigator();
@@ -120,11 +119,6 @@ export default function App() {
           options={{ title: 'View Patient Records' }}
         />
         
-        <Stack.Screen
-          name="CriticalConditionAlert"
-          component={CriticalConditionAlertScreen}
-          options={{ title: 'Critical Condition Alerts' }}
-        />
         <Stack.Screen
           name="EditPatientInfo"
           component={EditPatientInfoScreen}

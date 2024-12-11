@@ -41,7 +41,6 @@ const ListAllPatientsScreen = ({ navigation }) => {
         }
 
         const data = await response.json();
-        console.log('API Response:', data);
         setPatients(data);
       } catch (error) {
         console.error('Error fetching patients:', error);
@@ -85,15 +84,13 @@ const ListAllPatientsScreen = ({ navigation }) => {
     .filter((patient) =>
       patient.name?.toLowerCase().includes(searchTerm.toLowerCase())
     )
-    .filter((patient) => (showCritical ? patient.isCritical === true : true));
-
-  if (loading) {
-    return (
-      <View style={styles.loader}>
-        <ActivityIndicator size="large" color="#007bff" />
-      </View>
-    );
-  }
+    .filter((patient) => {
+      const isCriticalNormalized =
+        typeof patient.isCritical === 'boolean'
+          ? patient.isCritical
+          : patient.isCritical === 'true';
+      return showCritical ? isCriticalNormalized : true;
+    });
 
   return (
     <View style={styles.container}>
@@ -119,64 +116,71 @@ const ListAllPatientsScreen = ({ navigation }) => {
           <Text style={styles.addButtonText}>Add Patient</Text>
         </TouchableOpacity>
       </View>
-      <ScrollView style={styles.scrollView}>
-        {filteredPatients.length === 0 ? (
-          <Text style={styles.emptyState}>No patients found.</Text>
-        ) : (
-          filteredPatients.map((patient) => (
-            <View
-              key={patient._id}
-              style={[styles.patientCard, patient.isCritical ? styles.criticalCard : null]}
-            >
-              <Text style={styles.patientName}>{patient.name}</Text>
-              <Text style={styles.patientDetails}>
-                Phone: {patient.contact || 'N/A'}
-              </Text>
-              <Text style={styles.patientDetails}>
-                Email: {patient.email || 'N/A'}
-              </Text>
-              <Text style={styles.patientDetails}>
-                Blood Pressure: {patient.bloodPressure || 'N/A'}
-              </Text>
-              <Text style={styles.patientDetails}>
-                Heart Rate: {patient.heartRate || 'N/A'}
-              </Text>
-              {patient.isCritical && (
-                <Text style={styles.criticalText}>Critical Condition</Text>
-              )}
-              <View style={styles.actionsContainer}>
-                <TouchableOpacity
-                  style={styles.detailsButton}
-                  onPress={() => navigation.navigate('PatientDetail', { patientId: patient._id })}
-                >
-                  <Icon name="info" size={20} color="#fff" />
-                  <Text style={styles.detailsButtonText}>Details</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  onPress={() =>
-                    Alert.alert(
-                      'Delete Patient',
-                      'Are you sure you want to delete this patient?',
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Delete', onPress: () => handleDeletePatient(patient._id) },
-                      ]
-                    )
-                  }
-                >
-                  <Icon name="delete" size={20} color="#fff" />
-                  <Text style={styles.deleteButtonText}>Delete</Text>
-                </TouchableOpacity>
+      {loading ? (
+        <View style={styles.loader}>
+          <ActivityIndicator size="large" color="#007bff" />
+        </View>
+      ) : (
+        <ScrollView style={styles.scrollView}>
+          {filteredPatients.length === 0 ? (
+            <Text style={styles.emptyState}>No patients found.</Text>
+          ) : (
+            filteredPatients.map((patient) => (
+              <View
+                key={patient._id}
+                style={[styles.patientCard, patient.isCritical ? styles.criticalCard : null]}
+              >
+                <Text style={styles.patientName}>{patient.name}</Text>
+                <Text style={styles.patientDetails}>
+                  Phone: {patient.contact || 'N/A'}
+                </Text>
+                <Text style={styles.patientDetails}>
+                  Email: {patient.email || 'N/A'}
+                </Text>
+                <Text style={styles.patientDetails}>
+                  Blood Pressure: {patient.bloodPressure || 'N/A'}
+                </Text>
+                <Text style={styles.patientDetails}>
+                  Heart Rate: {patient.heartRate || 'N/A'}
+                </Text>
+                {patient.isCritical && (
+                  <Text style={styles.criticalText}>Critical Condition</Text>
+                )}
+                <View style={styles.actionsContainer}>
+                  <TouchableOpacity
+                    style={styles.detailsButton}
+                    onPress={() =>
+                      navigation.navigate('PatientDetail', { patientId: patient._id })
+                    }
+                  >
+                    <Icon name="info" size={20} color="#fff" />
+                    <Text style={styles.detailsButtonText}>Details</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() =>
+                      Alert.alert(
+                        'Delete Patient',
+                        'Are you sure you want to delete this patient?',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          { text: 'Delete', onPress: () => handleDeletePatient(patient._id) },
+                        ]
+                      )
+                    }
+                  >
+                    <Icon name="delete" size={20} color="#fff" />
+                    <Text style={styles.deleteButtonText}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          ))
-        )}
-      </ScrollView>
+            ))
+          )}
+        </ScrollView>
+      )}
     </View>
   );
 };
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -248,6 +252,7 @@ const styles = StyleSheet.create({
   criticalCard: {
     borderColor: 'red',
     borderWidth: 2,
+    backgroundColor: '#ffe6e6',
   },
   patientName: {
     fontSize: 18,
@@ -263,6 +268,7 @@ const styles = StyleSheet.create({
     color: 'red',
     fontWeight: 'bold',
     marginTop: 8,
+    fontSize: 16,
   },
   actionsContainer: {
     flexDirection: 'row',

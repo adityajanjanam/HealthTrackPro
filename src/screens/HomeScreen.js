@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,44 +17,59 @@ import { LinearGradient } from 'expo-linear-gradient';
 const { width } = Dimensions.get('window');
 const BASE_URL = 'http://10.0.2.2:5000';
 
-const HomeScreen = ({ navigation, route }) => {
-  const [isLoading, setIsLoading] = useState(false);
-  const username = route.params?.username || 'Healthcare Provider';
-
-  const fetchWithToken = async (endpoint, options = {}) => {
-    try {
-      const token = await AsyncStorage.getItem('accessToken');
-      if (!token) {
-        Alert.alert('Error', 'You must log in again.');
-        navigation.navigate('Login');
-        return null;
-      }
-  
-      const response = await fetch(`${BASE_URL}${endpoint}`, {
-        ...options,
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          ...options.headers,
-        },
-      });
-  
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API Error Response:', errorText);
-        Alert.alert('Error', errorText);
-        return null;
-      }
-  
-      return await response.json();
-    } catch (error) {
-      console.error('Fetch Error:', error.message);
-      Alert.alert('Error', 'An unexpected error occurred.');
+const fetchWithToken = async (endpoint) => {
+  try {
+    const token = await AsyncStorage.getItem('accessToken');
+    if (!token) {
+      Alert.alert('Error', 'You must log in again.');
       return null;
     }
-  };
-  
-  
+
+    const response = await fetch(`${BASE_URL}${endpoint}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Error fetching ${endpoint}:`, errorText);
+      Alert.alert('Error', `Failed to fetch data from ${endpoint}.`);
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Fetch error:', error.message);
+    Alert.alert('Error', 'An unexpected error occurred.');
+    return null;
+  }
+};
+
+const HomeScreen = ({ navigation, route }) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [totalPatients, setTotalPatients] = useState(0);
+  const [criticalPatients, setCriticalPatients] = useState(0);
+  const username = route.params?.username || 'Healthcare Provider';
+
+  useEffect(() => {
+    const fetchStatistics = async () => {
+      setIsLoading(true);
+      try {
+        const data = await fetchWithToken('/patients');
+        if (data) {
+          setTotalPatients(data.length);
+          const criticalCount = data.filter((patient) => patient.isCritical).length;
+          setCriticalPatients(criticalCount);
+        }
+      } catch (error) {
+        console.error('Fetch error:', error.message);
+        Alert.alert('Error', 'An unexpected error occurred.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStatistics();
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -69,6 +84,7 @@ const HomeScreen = ({ navigation, route }) => {
   return (
     <ScrollView contentContainerStyle={styles.scrollViewContent}>
       {isLoading && <ActivityIndicator size="large" color="#007bff" />}
+      
       {/* Header Section */}
       <LinearGradient colors={['#007bff', '#00c6ff']} style={styles.header}>
         <View style={styles.headerRow}>
@@ -83,6 +99,21 @@ const HomeScreen = ({ navigation, route }) => {
           resizeMode="contain"
         />
       </LinearGradient>
+
+      {/* Dashboard Statistics */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Dashboard Statistics</Text>
+        <View style={styles.statisticsRow}>
+          <View style={styles.statBox}>
+            <Text style={styles.statCount}>{totalPatients}</Text>
+            <Text style={styles.statLabel}>Total Patients</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statCount}>{criticalPatients}</Text>
+            <Text style={styles.statLabel}>Critical Patients</Text>
+          </View>
+        </View>
+      </View>
 
       {/* Manage Patients */}
       <View style={styles.card}>
@@ -122,18 +153,17 @@ const HomeScreen = ({ navigation, route }) => {
             <Text style={styles.actionText}>Add Records</Text>
           </TouchableOpacity>
           <TouchableOpacity
-  style={styles.actionButton}
-  onPress={async () => {
-    const data = await fetchWithToken('/patient-records');
-    if (data) {
-      navigation.navigate('ViewPatientRecords', { records: data });
-    }
-  }}
->
-  <Icon name="folder-open" size={30} color="#28a745" />
-  <Text style={styles.actionText}>View Records</Text>
-</TouchableOpacity>
-
+            style={styles.actionButton}
+            onPress={async () => {
+              const data = await fetchWithToken('/patient-records');
+              if (data) {
+                navigation.navigate('ViewPatientRecords', { records: data });
+              }
+            }}
+          >
+            <Icon name="folder-open" size={30} color="#28a745" />
+            <Text style={styles.actionText}>View Records</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -162,6 +192,7 @@ const HomeScreen = ({ navigation, route }) => {
     </ScrollView>
   );
 };
+
 
 const styles = StyleSheet.create({
   scrollViewContent: {
@@ -245,6 +276,26 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     textAlign: 'center',
+  },
+  statisticsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  statBox: {
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: '#f1f1f1',
+    width: '48%',
+  },
+  statCount: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#007bff',
+  },
+  statLabel: {
+    fontSize: 14,
+    color: '#555',
   },
 });
 

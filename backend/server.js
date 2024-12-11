@@ -4,95 +4,103 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const helmet = require('helmet');
+const Joi = require('joi');
 require('dotenv').config();
 
 // Initialize app
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
+// Security middleware
+app.use(helmet());
 app.use(cors({ origin: 'http://localhost:3000' })); // Allow CORS for frontend
 app.use(express.json()); // Parse incoming JSON requests
 
-// MongoDB connection
-mongoose
-  .connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log('Connected to MongoDB'))
-  .catch((error) => console.error('Error connecting to MongoDB:', error));
+// MongoDB connection with retry mechanism
+const connectWithRetry = () => {
+  mongoose
+    .connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => console.log('Connected to MongoDB'))
+    .catch((error) => {
+      console.error('MongoDB connection failed, retrying in 5 seconds...', error);
+      setTimeout(connectWithRetry, 5000);
+    });
+};
+connectWithRetry();
 
 // Logger Middleware
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url}`);
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
 });
 
 // Models
-
-// User model
-const UserSchema = new mongoose.Schema(
-  {
-    name: { type: String, required: true, minlength: 3 },
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      validate: {
-        validator: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
-        message: 'Invalid email address!',
+const User = mongoose.model(
+  'User',
+  new mongoose.Schema(
+    {
+      name: { type: String, required: true, minlength: 3 },
+      email: {
+        type: String,
+        required: true,
+        unique: true,
+        validate: {
+          validator: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
+          message: 'Invalid email address!',
+        },
       },
+      password: { type: String, required: true, minlength: 6 },
     },
-    password: { type: String, required: true, minlength: 6 },
-  },
-  { timestamps: true }
+    { timestamps: true }
+  )
 );
 
-const User = mongoose.model('User', UserSchema);
-
-// Patient model
-const PatientSchema = new mongoose.Schema(
-  {
-    name: { type: String, required: true, minlength: 3 },
-    dob: { type: Date, required: true },
-    contact: { type: String, required: true, match: /^[0-9]{10}$/ },
-    email: { type: String, default: 'N/A' },
-    medicalHistory: { type: String, required: true },
-    bloodPressure: { type: String, default: 'N/A' },
-    heartRate: { type: String, default: 'N/A' },
-    respiratoryRate: { type: String, default: 'N/A' },
-    oxygenLevel: { type: String, default: 'N/A' },
-    isCritical: { type: Boolean, default: false },
-  },
-  { timestamps: true }
+const Patient = mongoose.model(
+  'Patient',
+  new mongoose.Schema(
+    {
+      name: { type: String, required: true, minlength: 3 },
+      dob: { type: Date, required: true },
+      contact: { type: String, required: true, match: /^[0-9]{10}$/ },
+      email: { type: String, default: 'N/A' },
+      medicalHistory: { type: String, required: true },
+      bloodPressure: { type: String, default: 'N/A' },
+      heartRate: { type: String, default: 'N/A' },
+      respiratoryRate: { type: String, default: 'N/A' },
+      oxygenLevel: { type: String, default: 'N/A' },
+      isCritical: { type: Boolean, default: false },
+    },
+    { timestamps: true }
+  )
 );
 
-const Patient = mongoose.model('Patient', PatientSchema);
-
-// Patient record model
-const PatientRecordSchema = new mongoose.Schema(
-  {
+const PatientRecord = mongoose.model(
+  'PatientRecord',
+  new mongoose.Schema({
     patientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Patient', required: true },
     testType: {
       type: String,
+      enum: ['BloodPressure', 'HeartRate', 'RespiratoryRate', 'OxygenLevel'], // Enum values
       required: true,
-      enum: ['Blood Pressure', 'Heart Rate', 'Oxygen Level', 'Respiratory Rate'],
-      set: (value) => value.replace(/\b\w/g, (char) => char.toUpperCase()), // Normalize capitalization
     },
-    reading: { type: String, required: true },
+    value: { type: String, required: true },
     symptoms: [String],
     treatmentNotes: String,
     date: { type: Date, default: Date.now },
   },
-  { timestamps: true }
+  { timestamps: true })
 );
 
-const PatientRecord = mongoose.model('PatientRecord', PatientRecordSchema);
 
 // Middleware for JWT Authentication
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
-  if (!token) return res.status(401).json({ message: 'Access token missing or invalid.' });
+  if (!token) {
+    return res.status(401).json({ message: 'Access token missing or invalid.' });
+  }
 
   try {
     const verified = jwt.verify(token, process.env.JWT_SECRET || 'defaultSecretKey');
@@ -104,18 +112,22 @@ const authenticateToken = (req, res, next) => {
   }
 };
 
-
 // Routes
 
-// User Authentication
-
-// Register a new user
+// User Routes
 app.post('/register', async (req, res) => {
-  const { name, email, password } = req.body;
+  const schema = Joi.object({
+    name: Joi.string().min(3).required(),
+    email: Joi.string().email().required(),
+    password: Joi.string().min(6).required(),
+  });
 
-  if (!name || !email || !password) {
-    return res.status(400).json({ message: 'All fields are required.' });
+  const { error } = schema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ message: error.details[0].message });
   }
+
+  const { name, email, password } = req.body;
 
   try {
     const existingUser = await User.findOne({ email });
@@ -129,11 +141,11 @@ app.post('/register', async (req, res) => {
 
     res.status(201).json({ message: 'User registered successfully.' });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error.' });
+    console.error('Registration error:', error);
+    res.status(500).json({ message: 'Internal server error.' });
   }
 });
 
-// Login a user
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -157,9 +169,7 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Patient Management
-
-// Add a new patient
+// Patient Routes
 app.post('/patients', authenticateToken, async (req, res) => {
   const { name, dob, contact, email, medicalHistory } = req.body;
 
@@ -176,49 +186,141 @@ app.post('/patients', authenticateToken, async (req, res) => {
   }
 });
 
-// Get all patients
 app.get('/patients', authenticateToken, async (req, res) => {
   try {
     const patients = await Patient.find();
     res.status(200).json(patients);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error.' });
+    res.status(500).json({ message: 'Internal server error.' });
   }
 });
 
-// Patient Records
+app.get('/patients/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
 
-// Add a patient record
-app.post('/patient-records', authenticateToken, async (req, res) => {
-  const { patientId, testType, reading, symptoms, treatmentNotes } = req.body;
-
-  if (!patientId || !testType || !reading) {
-    return res.status(400).json({ message: 'Missing required fields' });
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Invalid Patient ID.' });
   }
 
   try {
-    const record = new PatientRecord({ patientId, testType, reading, symptoms, treatmentNotes });
-    await record.save();
-    res.status(201).json({ message: 'Patient record added successfully.', record });
+    const patient = await Patient.findById(id);
+    if (!patient) {
+      return res.status(404).json({ message: 'Patient not found.' });
+    }
+    res.status(200).json(patient);
   } catch (error) {
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+app.put('/patients/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const updatedData = req.body;
+
+  try {
+    const patient = await Patient.findByIdAndUpdate(id, updatedData, { new: true });
+    if (!patient) {
+      return res.status(404).json({ message: 'Patient not found' });
+    }
+    res.status(200).json(patient);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+app.delete('/patients/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Invalid Patient ID.' });
+  }
+
+  try {
+    const deletedPatient = await Patient.findByIdAndDelete(id);
+
+    if (!deletedPatient) {
+      return res.status(404).json({ message: 'Patient not found.' });
+    }
+
+    res.status(200).json({ message: 'Patient deleted successfully.', patient: deletedPatient });
+  } catch (error) {
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// PatientRecord Routes
+const normalizeTestType = {
+  bloodPressure: 'BloodPressure',
+  heartRate: 'HeartRate',
+  oxygenLevel: 'OxygenLevel',
+  respiratoryRate: 'RespiratoryRate',
+};
+
+app.post('/patient-records', async (req, res) => {
+  try {
+    const { patientId, readings, symptoms, treatmentNotes, isCritical } = req.body;
+
+    if (!patientId || !Array.isArray(readings) || readings.length === 0) {
+      return res.status(400).json({ message: 'Invalid payload. Ensure readings are provided.' });
+    }
+
+    const records = readings.map((reading) => ({
+      patientId,
+      testType: reading.testType,
+      value: reading.value,
+      symptoms,
+      treatmentNotes,
+      isCritical,
+    }));
+
+    await PatientRecord.insertMany(records);
+    res.status(201).json({ message: 'Patient records created successfully.', records });
+  } catch (error) {
+    console.error('Validation Error:', error);
     res.status(400).json({ error: error.message });
   }
 });
 
-// Get all patient records
+
+
 app.get('/patient-records', authenticateToken, async (req, res) => {
   try {
-    const records = await PatientRecord.find()
-      .populate('patientId', 'name contact')
-      .sort({ date: -1 });
+    const records = await PatientRecord.find().populate('patientId');
     res.status(200).json(records);
   } catch (error) {
-    console.error('Error fetching patient records:', error);
-    res.status(500).json({ error: 'Failed to fetch patient records.' });
+    res.status(500).json({ message: 'Internal server error.' });
   }
 });
 
+app.delete('/patient-records/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
 
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Invalid Patient Record ID.' });
+  }
+
+  try {
+    const deletedRecord = await PatientRecord.findByIdAndDelete(id);
+    if (!deletedRecord) {
+      return res.status(404).json({ message: 'Patient record not found.' });
+    }
+    res.status(200).json({ message: 'Patient record deleted successfully.', record: deletedRecord });
+  } catch (error) {
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+app.get('/patients/statistics', authenticateToken, async (req, res) => {
+  try {
+    const totalPatients = await Patient.countDocuments({});
+    const criticalPatients = await Patient.countDocuments({ isCritical: true });
+    res.json({ totalPatients, criticalPatients });
+  } catch (error) {
+    console.error('Error fetching statistics:', error);
+    res.status(500).json({ message: 'Failed to fetch statistics' });
+  }
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {

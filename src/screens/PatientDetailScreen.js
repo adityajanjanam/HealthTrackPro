@@ -3,20 +3,21 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Alert,
   ActivityIndicator,
+  Alert,
+  ScrollView,
+  TouchableOpacity,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_BASE_URL = 'http://10.0.2.2:5000';
 
-const PatientDetailScreen = ({ navigation, route }) => {
+const PatientDetailScreen = ({ route, navigation }) => {
   const { patientId } = route.params || {};
   const [patientData, setPatientData] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Fetch Patient Data
   useEffect(() => {
     if (!patientId) {
       Alert.alert('Error', 'Patient ID is missing.', [
@@ -26,14 +27,12 @@ const PatientDetailScreen = ({ navigation, route }) => {
     }
 
     const fetchPatientData = async () => {
-      console.log(`Fetching details for Patient ID: ${patientId}`);
       try {
         setLoading(true);
         const token = await AsyncStorage.getItem('accessToken');
         if (!token) {
-          Alert.alert('Authentication Error', 'Please log in again.', [
-            { text: 'OK', onPress: () => navigation.navigate('Login') },
-          ]);
+          Alert.alert('Authentication Error', 'Please log in again.');
+          navigation.navigate('Login');
           return;
         }
 
@@ -41,25 +40,26 @@ const PatientDetailScreen = ({ navigation, route }) => {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Fetched Patient Data:', data);
-          setPatientData(data);
-        } else {
-          const errorData = await response.json();
-          Alert.alert('Error', errorData.message || 'Failed to fetch patient data.');
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Error Response: ${errorText}`);
+          throw new Error('Failed to fetch patient data.');
         }
+
+        const data = await response.json();
+        setPatientData(data);
       } catch (error) {
         console.error('Error fetching patient data:', error);
-        Alert.alert('Error', 'An unexpected error occurred while fetching patient data.');
+        Alert.alert('Error', 'Unable to fetch patient data. Please try again.');
       } finally {
         setLoading(false);
       }
     };
 
     fetchPatientData();
-  }, [patientId, navigation]);
+  }, [patientId]);
 
+  // Edit Patient Info
   const handleEditInfo = () => {
     if (!patientData) {
       Alert.alert('Error', 'Patient data is missing. Cannot edit.');
@@ -68,6 +68,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
     navigation.navigate('EditPatientInfo', { patient: patientData });
   };
 
+  // Delete Patient Info
   const handleDeleteInfo = async () => {
     Alert.alert('Confirm Delete', 'Are you sure you want to delete this patient?', [
       { text: 'Cancel', style: 'cancel' },
@@ -78,9 +79,8 @@ const PatientDetailScreen = ({ navigation, route }) => {
           try {
             const token = await AsyncStorage.getItem('accessToken');
             if (!token) {
-              Alert.alert('Authentication Error', 'Please log in again.', [
-                { text: 'OK', onPress: () => navigation.navigate('Login') },
-              ]);
+              Alert.alert('Authentication Error', 'Please log in again.');
+              navigation.navigate('Login');
               return;
             }
 
@@ -89,13 +89,14 @@ const PatientDetailScreen = ({ navigation, route }) => {
               headers: { Authorization: `Bearer ${token}` },
             });
 
-            if (response.ok) {
-              Alert.alert('Success', 'Patient deleted successfully.');
-              navigation.goBack();
-            } else {
-              const errorData = await response.json();
-              Alert.alert('Error', errorData.message || 'Failed to delete patient.');
+            if (!response.ok) {
+              const errorText = await response.text();
+              console.error(`Error Response: ${errorText}`);
+              throw new Error('Failed to delete patient.');
             }
+
+            Alert.alert('Success', 'Patient deleted successfully.');
+            navigation.goBack();
           } catch (error) {
             console.error('Error deleting patient:', error);
             Alert.alert('Error', 'An unexpected error occurred while deleting the patient.');
@@ -105,6 +106,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
     ]);
   };
 
+  // Display Loader
   if (loading) {
     return (
       <View style={styles.loaderContainer}>
@@ -114,6 +116,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
     );
   }
 
+  // Display No Data
   if (!patientData) {
     return (
       <View style={styles.container}>
@@ -122,6 +125,7 @@ const PatientDetailScreen = ({ navigation, route }) => {
     );
   }
 
+  // Render Patient Details
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.title}>Patient Details</Text>

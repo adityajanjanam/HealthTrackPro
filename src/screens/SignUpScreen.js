@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -7,13 +7,23 @@ const SignUpScreen = ({ navigation }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSignUp = async () => {
-    if (!name || !email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+    if (!name.trim()) {
+      Alert.alert('Error', 'Full name is required.');
+      return;
+    }
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      Alert.alert('Error', 'Enter a valid email address.');
+      return;
+    }
+    if (!password.trim() || password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters long.');
       return;
     }
 
+    setIsLoading(true);
     try {
       const response = await fetch('http://10.0.2.2:5000/register', {
         method: 'POST',
@@ -35,11 +45,14 @@ const SignUpScreen = ({ navigation }) => {
           },
         ]);
       } else {
-        Alert.alert('Error', 'Failed to create account. Please try again.');
+        const errorData = await response.json();
+        Alert.alert('Error', errorData.message || 'Failed to create account. Please try again.');
       }
     } catch (error) {
       console.error('Sign-up error:', error);
       Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -62,6 +75,8 @@ const SignUpScreen = ({ navigation }) => {
             placeholderTextColor="#aaa"
             value={name}
             onChangeText={setName}
+            accessible
+            accessibilityLabel="Full Name Input"
           />
         </View>
 
@@ -75,6 +90,8 @@ const SignUpScreen = ({ navigation }) => {
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
+            accessible
+            accessibilityLabel="Email Address Input"
           />
         </View>
 
@@ -87,12 +104,18 @@ const SignUpScreen = ({ navigation }) => {
             secureTextEntry
             value={password}
             onChangeText={setPassword}
+            accessible
+            accessibilityLabel="Password Input"
           />
         </View>
 
-        <TouchableOpacity style={styles.button} onPress={handleSignUp}>
-          <Text style={styles.buttonText}>Sign Up</Text>
-        </TouchableOpacity>
+        {isLoading ? (
+          <ActivityIndicator size="large" color="#6A11CB" style={styles.loader} />
+        ) : (
+          <TouchableOpacity style={styles.button} onPress={handleSignUp}>
+            <Text style={styles.buttonText}>Sign Up</Text>
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity onPress={() => navigation.navigate('Login')}>
           <Text style={styles.link}>Already have an account? Login</Text>
@@ -173,6 +196,9 @@ const styles = StyleSheet.create({
     marginTop: 15,
     fontSize: 15,
     textDecorationLine: 'underline',
+  },
+  loader: {
+    marginTop: 15,
   },
 });
 

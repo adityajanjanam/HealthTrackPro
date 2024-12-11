@@ -18,8 +18,12 @@ const BASE_URL = 'http://10.0.2.2:5000';
 const AddPatientRecordScreen = ({ navigation }) => {
   const [selectedPatient, setSelectedPatient] = useState('');
   const [patients, setPatients] = useState([]);
-  const [testType, setTestType] = useState('');
-  const [reading, setReading] = useState('');
+  const [readings, setReadings] = useState({
+    bloodPressure: '',
+    heartRate: '',
+    oxygenLevel: '',
+    respiratoryRate: '',
+  });
   const [symptoms, setSymptoms] = useState({
     cough: false,
     fever: false,
@@ -31,16 +35,11 @@ const AddPatientRecordScreen = ({ navigation }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   const testTypes = [
-    { label: 'Blood Pressure', value: 'Blood Pressure', placeholder: 'Enter as systolic/diastolic (e.g., 120/80)' },
-    { label: 'Heart Rate', value: 'Heart Rate', placeholder: 'Enter heart rate (e.g., 70)' },
-    { label: 'Oxygen Level', value: 'Oxygen Level', placeholder: 'Enter oxygen level (e.g., 95)' },
-    { label: 'Respiratory Rate', value: 'Respiratory Rate', placeholder: 'Enter respiratory rate (e.g., 16)' },
-  ];  
-
-  const getPlaceholder = () => {
-    const selectedType = testTypes.find((type) => type.value === testType);
-    return selectedType ? selectedType.placeholder : 'Please select a test type to enter reading';
-  };
+    { label: 'Blood Pressure', key: 'bloodPressure', placeholder: 'Enter as systolic/diastolic (e.g., 120/80)' },
+    { label: 'Heart Rate', key: 'heartRate', placeholder: 'Enter heart rate (e.g., 70)' },
+    { label: 'Oxygen Level', key: 'oxygenLevel', placeholder: 'Enter oxygen level (e.g., 95)' },
+    { label: 'Respiratory Rate', key: 'respiratoryRate', placeholder: 'Enter respiratory rate (e.g., 16)' },
+  ];
 
   useEffect(() => {
     const fetchPatients = async () => {
@@ -75,36 +74,33 @@ const AddPatientRecordScreen = ({ navigation }) => {
   }, [navigation]);
 
   useEffect(() => {
-    if (testType && reading) {
-      checkCriticalCondition();
-    }
-  }, [testType, reading, symptoms]);
+    checkCriticalCondition();
+  }, [readings, symptoms]);
 
   const checkCriticalCondition = () => {
     let critical = false;
-    const parsedReading = parseFloat(reading);
 
-    switch (testType) {
-      case 'bloodPressure': {
-        const [systolic, diastolic] = reading.split('/').map(Number);
-        if (!isNaN(systolic) && !isNaN(diastolic)) {
-          critical = systolic >= 180 || diastolic >= 120;
-        }
-        break;
+    // Check readings
+    if (readings.bloodPressure) {
+      const [systolic, diastolic] = readings.bloodPressure.split('/').map(Number);
+      if (!isNaN(systolic) && !isNaN(diastolic)) {
+        critical = systolic >= 180 || diastolic >= 120;
       }
-      case 'heartRate':
-        critical = !isNaN(parsedReading) && (parsedReading <= 50 || parsedReading >= 120);
-        break;
-      case 'oxygenLevel':
-        critical = !isNaN(parsedReading) && parsedReading < 90;
-        break;
-      case 'respiratoryRate':
-        critical = !isNaN(parsedReading) && (parsedReading <= 10 || parsedReading >= 30);
-        break;
-      default:
-        break;
+    }
+    if (readings.heartRate) {
+      const heartRate = parseFloat(readings.heartRate);
+      critical = critical || (heartRate <= 50 || heartRate >= 120);
+    }
+    if (readings.oxygenLevel) {
+      const oxygenLevel = parseFloat(readings.oxygenLevel);
+      critical = critical || oxygenLevel < 90;
+    }
+    if (readings.respiratoryRate) {
+      const respiratoryRate = parseFloat(readings.respiratoryRate);
+      critical = critical || (respiratoryRate <= 10 || respiratoryRate >= 30);
     }
 
+    // Check symptoms
     const criticalSymptoms = symptoms.fever || symptoms.shortnessOfBreath;
     if (criticalSymptoms) {
       critical = true;
@@ -118,20 +114,12 @@ const AddPatientRecordScreen = ({ navigation }) => {
       Alert.alert('Validation Error', 'Please select a patient.');
       return false;
     }
-    if (!testType) {
-      Alert.alert('Validation Error', 'Please select a test type.');
+    if (!Object.values(readings).some((reading) => reading.trim())) {
+      Alert.alert('Validation Error', 'Please enter at least one test reading.');
       return false;
     }
-    if (!reading) {
-      Alert.alert('Validation Error', 'Please enter a reading.');
-      return false;
-    }
-    if (testType === 'bloodPressure' && !/^\d+\/\d+$/.test(reading)) {
+    if (readings.bloodPressure && !/^\d+\/\d+$/.test(readings.bloodPressure)) {
       Alert.alert('Validation Error', 'Please enter a valid blood pressure (e.g., 120/80).');
-      return false;
-    }
-    if (['heartRate', 'oxygenLevel', 'respiratoryRate'].includes(testType) && isNaN(reading)) {
-      Alert.alert('Validation Error', 'Reading must be a number.');
       return false;
     }
     if (!treatmentNotes.trim()) {
@@ -140,59 +128,82 @@ const AddPatientRecordScreen = ({ navigation }) => {
     }
     return true;
   };
+
   const handleSubmit = async () => {
     if (!validateFields()) return;
-
-    const payload = {
-        patientId: selectedPatient,
-        testType,
-        reading,
-        symptoms: Object.keys(symptoms).filter((key) => symptoms[key]),
-        treatmentNotes,
-        isCritical,
-    };
-
-    console.log('Submitting Payload:', payload);
-
-    try {
-        const token = await AsyncStorage.getItem('accessToken');
-        if (!token) {
-            Alert.alert('Error', 'You must log in again.');
-            navigation.navigate('Login');
-            return;
-        }
-
-        const response = await fetch(`${BASE_URL}/patient-records`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(payload),
-        });
-
-        if (response.ok) {
-            const alertMessage = isCritical
-                ? 'Record submitted successfully! Patient is in critical condition!'
-                : 'Record submitted successfully!';
-            Alert.alert('Success', alertMessage);
-            resetFields();
-        } else {
-            const errorData = await response.json();
-            console.error('Error Response:', errorData);
-            Alert.alert('Error', errorData.message || 'Failed to submit record.');
-        }
-    } catch (error) {
-        console.error('Error Submitting Record:', error);
-        Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
+  
+    const token = await AsyncStorage.getItem('accessToken');
+    if (!token) {
+      Alert.alert('Error', 'You must log in again.');
+      navigation.navigate('Login');
+      return;
     }
-};
+  
+    try {
+      // Normalize testType
+      const normalizeTestType = {
+        bloodPressure: 'BloodPressure',
+        heartRate: 'HeartRate',
+        oxygenLevel: 'OxygenLevel',
+        respiratoryRate: 'RespiratoryRate',
+      };
+  
+      // Prepare readings array
+      const readingsArray = Object.entries(readings)
+        .filter(([key, value]) => value.trim()) // Filter out empty readings
+        .map(([key, value]) => ({
+          testType: normalizeTestType[key], // Convert to backend-compatible enum value
+          value: value.trim(), // Ensure value is a string
+        }));
+  
+      if (readingsArray.length === 0) {
+        Alert.alert('Error', 'No valid test readings provided.');
+        return;
+      }
+  
+      // Prepare payload
+      const payload = {
+        patientId: selectedPatient,
+        readings: readingsArray,
+        symptoms: Object.keys(symptoms).filter((key) => symptoms[key]),
+        treatmentNotes: treatmentNotes.trim(),
+        isCritical,
+      };
+  
+      console.log('Submitting Payload:', payload);
+  
+      const response = await fetch(`${BASE_URL}/patient-records`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+  
+      if (response.ok) {
+        Alert.alert('Success', 'Record submitted successfully.');
+        resetFields();
+      } else {
+        const errorData = await response.json();
+        console.error('Error Response:', errorData);
+        Alert.alert('Error', errorData.message || 'Failed to submit record.');
+      }
+    } catch (error) {
+      console.error('Error Submitting Record:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
+    }
+  };
 
 
   const resetFields = () => {
     setSelectedPatient('');
-    setTestType('');
-    setReading('');
+    setReadings({
+      bloodPressure: '',
+      heartRate: '',
+      oxygenLevel: '',
+      respiratoryRate: '',
+    });
     setSymptoms({
       cough: false,
       fever: false,
@@ -224,30 +235,20 @@ const AddPatientRecordScreen = ({ navigation }) => {
               </Picker>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Select Test Type</Text>
-              <Picker
-                selectedValue={testType}
-                style={styles.picker}
-                onValueChange={setTestType}
-              >
-                <Picker.Item label="Select a Test Type" value="" />
-                {testTypes.map((type) => (
-                  <Picker.Item key={type.value} label={type.label} value={type.value} />
-                ))}
-              </Picker>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Enter Reading</Text>
-              <TextInput
-                style={styles.input}
-                placeholder={getPlaceholder()}
-                keyboardType="numeric"
-                value={reading}
-                onChangeText={setReading}
-              />
-            </View>
+            {testTypes.map((test) => (
+              <View key={test.key} style={styles.inputGroup}>
+                <Text style={styles.label}>{test.label}</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder={test.placeholder}
+                  keyboardType="numeric"
+                  value={readings[test.key]}
+                  onChangeText={(value) =>
+                    setReadings((prev) => ({ ...prev, [test.key]: value }))
+                  }
+                />
+              </View>
+            ))}
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Symptoms</Text>
