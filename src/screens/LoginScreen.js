@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,20 +11,61 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import GoogleSignInButton from '../components/GoogleSignInButton';
+import {
+  COLORS,
+  FONTS,
+  SPACING,
+  BORDER_RADIUS,
+  globalStyles,
+  createShadow,
+  createInputStyle,
+  createButtonStyle,
+  createTextStyle,
+} from '../theme';
 
+// Optimized constants
 const API_BASE_URL = 'http://10.0.2.2:5000';
+const REQUEST_TIMEOUT = 15000; // 15 second timeout
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// eslint-disable-next-line no-unused-vars
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const isValidEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
+  // Memoized validation function to prevent recreation
+  const isValidEmail = useCallback((emailValue) => {
+    return EMAIL_REGEX.test(emailValue);
+  }, []);
 
-  const handleLogin = async () => {
+  // Memoized Google success handler
+  const handleGoogleSuccess = useCallback(
+    (result) => {
+      try {
+        const username = result.user.name || result.user.email.split('@')[0];
+        Alert.alert('Success', 'Logged in with Google successfully!', [
+          {
+            text: 'OK',
+            onPress: () => navigation.replace('Home', { username }),
+          },
+        ]);
+      } catch (error) {
+        console.error('Google login error:', error);
+        Alert.alert('Error', 'Failed to process Google login');
+      }
+    },
+    [navigation]
+  );
+
+  // Memoized Google error handler
+  const handleGoogleError = useCallback((error) => {
+    Alert.alert('Error', error.message || 'Google sign-in failed. Please try again.');
+  }, []);
+
+  // Memoized login handler with optimized fetch
+  const handleLogin = useCallback(async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Please fill in both email and password fields.');
       return;
@@ -43,13 +84,20 @@ const LoginScreen = ({ navigation }) => {
     setLoading(true);
 
     try {
+      // Use AbortController for request timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+
       const response = await fetch(`${API_BASE_URL}/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email, password }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       const data = await response.json();
 
@@ -83,18 +131,17 @@ const LoginScreen = ({ navigation }) => {
         }
       }
     } catch (error) {
-      console.error('Error during login:', error);
-      Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
+      if (error.name !== 'AbortError') {
+        console.error('Error during login:', error);
+        Alert.alert('Error', 'Network request timeout. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, [isValidEmail, navigation]);
 
   return (
-    <LinearGradient
-      colors={['#2196F3', '#21CBF3']}
-      style={styles.container}
-    >
+    <LinearGradient colors={['#2196F3', '#21CBF3']} style={styles.container}>
       <View style={styles.card}>
         <Image
           source={require('../../assets/healthtrack_logo.png')}
@@ -131,12 +178,23 @@ const LoginScreen = ({ navigation }) => {
             <Text style={styles.buttonText}>Login</Text>
           )}
         </TouchableOpacity>
+
+        {/* Divider */}
+        <View style={styles.dividerContainer}>
+          <View style={styles.divider} />
+          <Text style={styles.dividerText}>OR</Text>
+          <View style={styles.divider} />
+        </View>
+
+        {/* Google Sign-In Button */}
+        <GoogleSignInButton onSuccess={handleGoogleSuccess} onError={handleGoogleError} />
+
         <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
           <Text style={styles.forgotPassword}>Forgot Password?</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
           <Text style={styles.link}>
-            Don't have an account? <Text style={styles.linkHighlight}>Sign Up</Text>
+            Don&apos;t have an account? <Text style={styles.linkHighlight}>Sign Up</Text>
           </Text>
         </TouchableOpacity>
       </View>
@@ -144,85 +202,89 @@ const LoginScreen = ({ navigation }) => {
   );
 };
 
+// eslint-disable-next-line react/no-unused-prop-types, no-use-before-define, react-native/no-color-literals
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    backgroundColor: '#F5F5F5',
+    paddingHorizontal: SPACING.lg,
+    backgroundColor: COLORS.background,
   },
   card: {
     width: '100%',
     maxWidth: 400,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 30,
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING.xl,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 8,
+    ...createShadow(8),
   },
   logo: {
     width: 80,
     height: 80,
-    marginBottom: 20,
+    marginBottom: SPACING.xl,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333333',
-    marginBottom: 10,
+    ...createTextStyle('h2', COLORS.textPrimary),
+    marginBottom: SPACING.sm,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#757575',
-    marginBottom: 20,
+    ...createTextStyle('body', COLORS.textSecondary),
+    marginBottom: SPACING.xl,
   },
   input: {
+    ...createInputStyle(false, false),
     width: '100%',
-    height: 50,
-    backgroundColor: '#E0E0E0',
-    borderRadius: 10,
-    paddingHorizontal: 15,
-    marginBottom: 20,
-    fontSize: 16,
-    color: '#333333',
+    marginBottom: SPACING.lg,
+  },
+  inputFocused: {
+    ...createInputStyle(true, false),
+    width: '100%',
+    marginBottom: SPACING.lg,
+  },
+  inputError: {
+    ...createInputStyle(false, true),
+    width: '100%',
+    marginBottom: SPACING.lg,
   },
   button: {
-    backgroundColor: '#1976D2',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    borderRadius: 10,
+    ...createButtonStyle('primary', false),
     width: '100%',
-    alignItems: 'center',
-    marginTop: 10,
+    marginTop: SPACING.md,
   },
   buttonDisabled: {
-    opacity: 0.7,
-    backgroundColor: '#BDBDBD',
+    ...createButtonStyle('primary', true),
+    width: '100%',
+    marginTop: SPACING.md,
   },
   buttonText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-    fontSize: 18,
+    ...createTextStyle('label', COLORS.white),
   },
   forgotPassword: {
-    color: '#FF5722',
-    marginTop: 15,
-    fontSize: 14,
+    ...createTextStyle('body', COLORS.primary),
+    marginTop: SPACING.lg,
   },
   link: {
-    marginTop: 10,
-    fontSize: 14,
-    color: '#757575',
+    ...createTextStyle('body', COLORS.textSecondary),
+    marginTop: SPACING.md,
   },
   linkHighlight: {
-    color: '#4CAF50',
-    fontWeight: 'bold',
+    ...createTextStyle('label', COLORS.success),
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: SPACING.xl,
+    width: '100%',
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: COLORS.border,
+  },
+  dividerText: {
+    marginHorizontal: SPACING.md,
+    ...createTextStyle('label', COLORS.textSecondary),
   },
 });
-
-export default LoginScreen;

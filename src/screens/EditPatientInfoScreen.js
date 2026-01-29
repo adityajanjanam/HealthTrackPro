@@ -17,7 +17,6 @@ const EditPatientInfoScreen = ({ route, navigation }) => {
   const { patient } = route.params || {};
 
   if (!patient || !patient._id) {
-    console.error('Invalid patient data:', route.params);
     Alert.alert('Error', 'Patient ID is missing. Please try again.');
     navigation.goBack();
     return null;
@@ -74,8 +73,6 @@ const EditPatientInfoScreen = ({ route, navigation }) => {
         respiratoryRate,
       };
 
-      console.log('Updating patient with payload:', payload);
-
       const response = await fetch(`${API_BASE_URL}/patients/${patient._id}`, {
         method: 'PUT',
         headers: {
@@ -91,11 +88,9 @@ const EditPatientInfoScreen = ({ route, navigation }) => {
         navigation.navigate('PatientDetail', { patientId: updatedPatient._id });
       } else {
         const errorText = await response.text();
-        console.error('Server Error:', errorText);
         Alert.alert('Error', `Server Error: ${errorText}`);
       }
     } catch (error) {
-      console.error('Error saving patient data:', error);
       Alert.alert('Error', 'An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);

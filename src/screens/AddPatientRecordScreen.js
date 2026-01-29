@@ -170,8 +170,6 @@ const AddPatientRecordScreen = ({ navigation }) => {
         isCritical,
       };
   
-      console.log('Submitting Payload:', payload);
-  
       const response = await fetch(`${BASE_URL}/patient-records`, {
         method: 'POST',
         headers: {
